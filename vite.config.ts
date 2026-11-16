@@ -1,8 +1,8 @@
 import { defineConfig } from "vite";
 import { resolve } from "path";
 
-// Two HTML entry points: the transparent always-on-top pet overlay (index.html)
-// and the Settings window (settings.html). Tauri serves these in separate windows.
+// Three HTML entry points: the transparent always-on-top pet overlay (index.html),
+// the dashboard (dashboard.html) and the right-click popover (popover.html).
 export default defineConfig({
   clearScreen: false,
   server: { port: 1420, strictPort: true },
@@ -10,7 +10,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: resolve(__dirname, "index.html"),
-        settings: resolve(__dirname, "settings.html"),
+        dashboard: resolve(__dirname, "dashboard.html"),
         popover: resolve(__dirname, "popover.html"),
       },
     },

@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>UltraClaude</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%2315181b'/><path d='M16 16V6.5M16 16l8.2 4.8M16 16l-8.2 4.8' stroke='%23fff' stroke-width='1.6'/><g fill='%23fff'><circle cx='16' cy='16' r='3.4'/><circle cx='16' cy='6.5' r='2.4'/><circle cx='24.2' cy='20.8' r='2.4'/><circle cx='7.8' cy='20.8' r='2.4'/></g></svg>">
+  <link rel="stylesheet" href="/vendor/xterm.css">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <aside class="side">
+    <div class="brand">
+      <button type="button" class="wordmark" id="mapBtn" title="Map of all your Claude Code chats">
+        <svg viewBox="0 0 20 20" width="14" height="14" aria-hidden="true"><path d="M10 10V3.4M10 10l5.7 3.3M10 10l-5.7 3.3" stroke="currentColor" stroke-width="1.2"/><circle cx="10" cy="10" r="2.4" fill="currentColor"/><circle cx="10" cy="3.4" r="1.7" fill="currentColor"/><circle cx="15.7" cy="13.3" r="1.7" fill="currentColor"/><circle cx="4.3" cy="13.3" r="1.7" fill="currentColor"/></svg>
+        ultraclaude
+      </button>
+      <span class="project" id="projectName"></span>
+    </div>
+
+    <nav id="nav" aria-label="Views">
+      <button type="button" data-view="overview" class="active">Overview</button>
+      <button type="button" data-view="tasks">Tasks<span class="num" id="navTasks"></span></button>
+      <button type="button" data-view="memory">Memory<span class="num" id="navNotes"></span></button>
+    </nav>
+
+    <div class="side-scroll">
+      <h2 class="side-head">Agents</h2>
+      <div id="roster"></div>
+      <div class="selbar" id="selBar" hidden>
+        <span id="selCount"></span>
+        <div class="selact">
+          <button type="button" class="btn" id="selOpen" title="Show the selected agents side by side">Open together</button>
+          <button type="button" class="btn" id="selStop" title="Stop the selected agents. Their sessions can be continued later.">Stop</button>
+          <button type="button" class="btn" id="selRemove" title="Remove the selected agents and end their sessions">Remove</button>
+          <button type="button" class="link" id="selClear">Clear</button>
+        </div>
+      </div>
+      <p class="side-note" id="rosterEmpty">None yet.</p>
+      <div class="side-actions">
+        <button type="button" class="btn" id="addAgent">New agent</button>
+        <button type="button" class="btn" id="gridBtn" hidden title="Show all terminals side by side">All terminals</button>
+      </div>
+      <div id="sessionsBox" hidden>
+        <h2 class="side-head" title="Claude Code sessions that already ran in this folder. Click one to continue it here.">Earlier sessions</h2>
+        <div id="sessions"></div>
+        <button type="button" class="link side-more" id="sessionsMore" hidden></button>
+      </div>
+    </div>
+
+    <div class="update" id="updateBar" hidden>
+      <span id="updateText"></span>
+      <button type="button" class="btn" id="updateBtn">Restart now</button>
+    </div>
+    <div class="side-foot">
+      <span class="conn"><i class="dot" id="conn"></i><span id="connText">connecting</span></span>
+      <button type="button" class="link" id="quit" title="Stop all agents and the server for this project">Quit</button>
+    </div>
+  </aside>
+
+  <main id="main">
+    <section id="view-overview" class="view">
+      <header class="view-head">
+        <h1>Overview</h1>
+        <p class="sub" id="summary"></p>
+      </header>
+      <div class="overview">
+        <div class="stage" id="stage">
+          <svg id="graph" role="img" aria-label="Agents and the memory they share"></svg>
+          <div class="start" id="start" hidden>
+            <h2>No agents yet</h2>
+            <p>Pick a role to start your first agent. All agents in this project share one memory, see what the others are doing and can message each other.</p>
+            <div class="roles" id="quickRoles"></div>
+            <p class="also" id="startSessions" hidden>Claude Code already ran in this folder. Pick one of the earlier sessions in the sidebar to continue it here with everything it knew.</p>
+          </div>
+        </div>
+        <aside class="feed">
+          <header>
+            <h2>Activity</h2>
+            <label class="check"><input type="checkbox" id="showTools">Tool calls</label>
+          </header>
+          <ol id="feed" class="hide-tools"></ol>
+          <form id="msgForm" class="composer">
+            <select id="msgTo" aria-label="Recipient"></select>
+            <input id="msgText" placeholder="Message your agents" autocomplete="off" aria-label="Message">
+            <button class="btn">Send</button>
+          </form>
+        </aside>
+      </div>
+    </section>
+
+    <section id="view-map" class="view" hidden>
+      <header class="view-head">
+        <h1>All chats</h1>
+        <p class="sub" id="mapSummary"></p>
+        <input id="mapFilter" class="head-filter" placeholder="Find a chat" autocomplete="off" aria-label="Find a chat">
+      </header>
+      <div class="chatmap">
+        <div class="map-stage" id="mapStage">
+          <svg id="mapSvg" role="img" aria-label="Every folder with Claude Code chats, from the drive outwards"></svg>
+          <div class="map-zoom">
+            <button type="button" class="btn" id="mapZoomIn" aria-label="Zoom in">+</button>
+            <button type="button" class="btn" id="mapZoomOut" aria-label="Zoom out">−</button>
+            <button type="button" class="btn" id="mapFit">Fit</button>
+          </div>
+          <p class="map-hint">Scroll to zoom · drag to move · click a folder to open or close it</p>
+          <p class="map-empty" id="mapEmpty" hidden></p>
+        </div>
+        <aside class="map-detail" id="mapDetail"></aside>
+      </div>
+    </section>
+
+    <section id="view-agents" class="view" hidden>
+      <div class="gridbar" id="gridBar" hidden>
+        <span id="gridBarText"></span>
+        <button type="button" class="link" id="gridShowAll">Show all</button>
+      </div>
+      <div id="terms"></div>
+    </section>
+
+    <section id="view-tasks" class="view" hidden>
+      <header class="view-head">
+        <h1>Tasks</h1>
+        <form id="taskForm" class="composer inline">
+          <input id="taskTitle" placeholder="Add a task" autocomplete="off" required aria-label="Task title">
+          <select id="taskAssignee" aria-label="Assign to"></select>
+          <button class="btn">Add</button>
+        </form>
+      </header>
+      <div class="board" id="board"></div>
+    </section>
+
+    <section id="view-memory" class="view" hidden>
+      <header class="view-head">
+        <h1>Memory</h1>
+        <p class="sub mono" id="vaultPath"></p>
+        <div class="head-actions">
+          <button type="button" class="btn primary" id="newNote">New note</button>
+          <button type="button" class="btn" id="newFolder">New folder</button>
+          <button type="button" class="btn" id="openObsidian">Open in Obsidian</button>
+          <button type="button" class="btn" id="openFolder">Open folder</button>
+        </div>
+      </header>
+      <div class="memory">
+        <aside class="notes">
+          <input id="noteFilter" placeholder="Find a note" autocomplete="off" aria-label="Find a note">
+          <div id="noteList"></div>
+        </aside>
+        <article id="noteView">
+          <div class="doc" id="vaultInfo">
+            <h1>Shared memory</h1>
+            <p>Every agent in this project reads and writes this Obsidian vault. It holds what the team has learned: decisions, architecture, conventions and findings.</p>
+            <p>Notes you write yourself under <code>Memory</code> or <code>Global</code> are found by the agents too. <code>Global</code> is shared across all your projects.</p>
+            <p id="obsidianHint" hidden>Obsidian does not know this folder yet. In Obsidian choose <b>Open folder as vault</b> and pick the path shown above. After that, notes open directly from here.</p>
+          </div>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="agentDialog">
+    <form method="dialog" id="agentForm">
+      <h1>New agent</h1>
+      <div class="roles three" id="roleGrid"></div>
+      <label class="field"><span>Name</span><input id="fName" maxlength="40" autocomplete="off"></label>
+      <label class="field"><span>Extra instructions <span class="opt">· optional</span></span><textarea id="fInstructions" rows="2"></textarea></label>
+      <label class="field"><span>First task <span class="opt">· optional, sent as soon as the agent is ready</span></span><textarea id="fPrompt" rows="2" placeholder="e.g. Review PR #12."></textarea></label>
+      <details>
+        <summary>Advanced</summary>
+        <div class="fields">
+          <label class="field"><span>Model</span><select id="fModel"><option value="">Default</option><option>fable</option><option>opus</option><option>sonnet</option><option>haiku</option></select></label>
+          <label class="field"><span>Permissions</span><select id="fPerm"><option value="">Default (asks first)</option><option value="acceptEdits">Accept edits automatically</option><option value="auto">Auto</option><option value="plan">Plan only</option></select></label>
+        </div>
+        <label class="check"><input type="checkbox" id="fWorktree">Own git worktree, so the agent works in a separate copy of the repo</label>
+      </details>
+      <div class="dialog-actions">
+        <button type="button" class="btn" id="agentCancel">Cancel</button>
+        <button class="btn primary" id="agentCreate">Start agent</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toasts" aria-live="polite"></div>
+  <script src="/vendor/xterm.js"></script>
+  <script src="/vendor/addon-fit.js"></script>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

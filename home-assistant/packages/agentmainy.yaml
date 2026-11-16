@@ -1,0 +1,118 @@
+# AgentMainy example package for Home Assistant.
+#
+# Copy to /config/packages/agentmainy.yaml and enable packages once in
+# configuration.yaml:
+#
+#   homeassistant:
+#     packages: !include_dir_named packages
+#
+# Every block is optional: delete what you do not have. Replace each
+# <PLACEHOLDER>; nothing here is specific to one home.
+
+# --- Presence from a Swisscom Internet-Box -----------------------------------
+# Needs /config/swisscom/swisscom_devices.py and /config/swisscom/password.txt
+# (only the router's admin password, chmod 600). Polled every minute.
+command_line:
+  - sensor:
+      name: "Router devices"
+      unique_id: router_devices
+      command: "python3 /config/swisscom/swisscom_devices.py /config/swisscom/password.txt"
+      scan_interval: 60
+      command_timeout: 30
+      value_template: "{{ value_json.devices | selectattr('active') | list | count }}"
+      json_attributes:
+        - devices
+        - new
+
+# The device list changes every minute; keep it out of the history database.
+recorder:
+  exclude:
+    entities:
+      - sensor.router_devices
+
+automation:
+  # One device_tracker per phone, matched by the LAST 3 bytes of its Wi-Fi
+  # address: range extenders often rewrite the first 3. Link each tracker to
+  # a person (Settings > People) and the dashboard shows who is home.
+  - id: phones_router_presence
+    alias: "Phones: presence from the router"
+    mode: queued
+    triggers:
+      - trigger: state
+        entity_id: sensor.router_devices
+      - trigger: homeassistant
+        event: start
+    conditions:
+      - condition: template
+        value_template: "{{ states('sensor.router_devices') | is_number }}"
+    actions:
+      - repeat:
+          for_each:
+            - { id: "<person1>_phone", mac: "<aa:bb:cc>" }
+            - { id: "<person2>_phone", mac: "<dd:ee:ff>" }
+          sequence:
+            - action: device_tracker.see
+              data:
+                dev_id: "{{ repeat.item.id }}"
+                source_type: router
+                location_name: >-
+                  {{ 'home' if state_attr('sensor.router_devices','devices')
+                     | selectattr('active') | selectattr('mac','search', repeat.item.mac ~ '$')
+                     | list | count > 0 else 'not_home' }}
+
+  # Tell me when a device the router has never seen joins the network.
+  - id: new_network_device
+    alias: "New device joined the network"
+    mode: queued
+    triggers:
+      - trigger: state
+        entity_id: sensor.router_devices
+        attribute: new
+    conditions:
+      - condition: template
+        value_template: "{{ (state_attr('sensor.router_devices','new') or []) | count > 0 }}"
+    actions:
+      - action: persistent_notification.create
+        data:
+          title: "New device"
+          message: "New device on your Wi-Fi: {{ state_attr('sensor.router_devices','new') | join(', ') }}"
+
+# --- Nuki Smart Lock Pro over MQTT -------------------------------------------
+# Lock / unlock / battery come from Nuki's own Home Assistant discovery. These
+# two add the last action and the door sensor. <NUKI_ID> is the hex id in the
+# lock's MQTT topics (nuki/<NUKI_ID>/state).
+mqtt:
+  sensor:
+    - name: "Front door last action"
+      unique_id: front_door_last_action
+      state_topic: "nuki/<NUKI_ID>/lockActionEvent"
+      icon: mdi:history
+      value_template: >-
+        {% set p = value.split(',') %}
+        {% set a = {'1':'Unlocked','2':'Locked','3':'Opened','4':"Lock 'n' Go",'5':"Lock 'n' Go + open",'6':'Full lock'} %}
+        {% set t = {'0':'app','1':'by hand','2':'button','3':'timer','6':'auto-lock','172':'Home Assistant','255':'keypad'} %}
+        {{ a.get(p[0], 'Action ' ~ p[0]) }} ({{ t.get(p[1], 'trigger ' ~ p[1]) }})
+  binary_sensor:
+    - name: "Front door"
+      unique_id: front_door_contact
+      state_topic: "nuki/<NUKI_ID>/doorsensorState"
+      device_class: door
+      payload_on: "3"
+      payload_off: "2"
+
+# --- V-ZUG appliances (local API, no account) --------------------------------
+# Name sensors "<x> running" / "<x> ends": the dashboard pairs them and lists
+# appliances only while they run. Reserve the IP in your router.
+rest:
+  - resource: "http://<APPLIANCE_IP>/ai?command=getDeviceStatus"
+    scan_interval: 30
+    sensor:
+      - name: "Oven ends"
+        unique_id: oven_ends
+        icon: mdi:timer-sand
+        value_template: "{{ value_json.ProgramEnd.End or '-' }}"
+    binary_sensor:
+      - name: "Oven running"
+        unique_id: oven_running
+        device_class: running
+        value_template: "{{ value_json.Inactive != 'true' and value_json.Program != '' }}"

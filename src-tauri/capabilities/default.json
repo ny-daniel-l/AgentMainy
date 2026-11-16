@@ -1,7 +1,11 @@
 {
   "identifier": "default",
-  "description": "Permissions for the pet overlay and the settings window.",
-  "windows": ["pet", "settings", "popover"],
+  "description": "Permissions for the pet overlay, the dashboard and the popover.",
+  "windows": [
+    "pet",
+    "dashboard",
+    "popover"
+  ],
   "permissions": [
     "core:default",
     "core:window:allow-start-dragging",
@@ -11,7 +15,6 @@
     "autostart:allow-disable",
     "autostart:allow-is-enabled",
     "notification:default",
-    "updater:default",
     "process:default"
   ]
 }

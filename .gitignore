@@ -4,3 +4,14 @@ src-tauri/target/
 src-tauri/gen/
 *.log
 .DS_Store
+
+# team engine: dependencies and the per-project state it writes
+engine/ultraclaude/node_modules/
+.ultraclaude/
+# never commit local secrets
+*.token
+*_token.txt
+*password*.txt
+.env
+# generation logs (links to uploaded reference images)
+art/**/fal_manifest.jsonl

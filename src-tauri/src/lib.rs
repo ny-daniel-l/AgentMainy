@@ -1,12 +1,10 @@
-pub mod cli;
-pub mod hooks;
-pub mod orch;
-pub mod server;
-pub mod statemap;
-pub mod transcript;
-pub mod limits;
+pub mod agents;
+pub mod platform;
+pub mod team;
+// Flat re-exports keep the historic `crate::hooks` / `agentpet_lib::cli` paths.
+pub use agents::{cli, hooks, limits, orch, server, statemap, transcript};
 #[cfg(windows)]
-pub mod winfocus;
+pub use platform::winfocus;
 
 use std::sync::Mutex;
 use std::time::Duration;
@@ -18,7 +16,6 @@ use tauri::{Emitter, Manager, PhysicalPosition, WebviewUrl, WebviewWindowBuilder
 struct TrayItems {
     show_pet: tauri::menu::CheckMenuItem<tauri::Wry>,
     settings: MenuItem<tauri::Wry>,
-    updates: MenuItem<tauri::Wry>,
     quit: MenuItem<tauri::Wry>,
     tray: tauri::tray::TrayIcon<tauri::Wry>,
 }
@@ -35,6 +32,8 @@ struct HitRect {
     h: f64,
 }
 
+/// Settings files stay in %APPDATA%/AgentPet (pre-rename name) so the pet, its
+/// position and its XP survive the AgentMainy rename.
 /// Append a line to %APPDATA%/AgentPet/debug.log , lightweight field
 /// diagnostics for the Windows build (no console there).
 fn dlog(msg: &str) {
@@ -151,12 +150,12 @@ fn write_lang(code: &str) {
 }
 
 /// Localised tray labels (the only app text on the Rust side).
-fn tray_labels(code: &str) -> (&'static str, &'static str, &'static str, &'static str) {
+fn tray_labels(code: &str) -> (&'static str, &'static str, &'static str) {
     match code {
-        "vi" => ("Hiện pet", "Cài đặt", "Kiểm tra cập nhật", "Thoát AgentPet"),
-        "zh" => ("显示宠物", "设置", "检查更新", "退出 AgentPet"),
-        "zh-TW" => ("顯示寵物", "設定", "檢查更新", "結束 AgentPet"),
-        _ => ("Show pet", "Settings", "Check for updates", "Quit AgentPet"),
+        "vi" => ("Hiện pet", "Bảng điều khiển", "Thoát AgentMainy"),
+        "zh" => ("显示宠物", "仪表板", "退出 AgentMainy"),
+        "zh-TW" => ("顯示寵物", "儀表板", "結束 AgentMainy"),
+        _ => ("Show pet", "Dashboard", "Quit AgentMainy"),
     }
 }
 
@@ -178,21 +177,29 @@ fn toggle_install(kind: String) -> Result<bool, String> {
 /// Window creation MUST NOT run inside a sync command / menu callback on
 /// Windows (the webview build deadlocks against the blocked event loop), so
 /// every caller goes through this thread-spawning wrapper.
+/// The dashboard window: Overview, Team, Home, Pet and every setting.
+fn dashboard_window<'a>(
+    app: &'a tauri::AppHandle,
+    url: &str,
+) -> WebviewWindowBuilder<'a, tauri::Wry, tauri::AppHandle> {
+    WebviewWindowBuilder::new(app, "dashboard", WebviewUrl::App(url.into()))
+        .title("AgentMainy")
+        .inner_size(1180.0, 780.0)
+        .min_inner_size(860.0, 600.0)
+        .resizable(true)
+}
+
 fn open_settings_impl(app: tauri::AppHandle) {
     std::thread::spawn(move || {
         dlog("open_settings: worker thread");
-        if let Some(w) = app.get_webview_window("settings") {
+        if let Some(w) = app.get_webview_window("dashboard") {
             dlog("open_settings: existing window, showing");
             let _ = w.show();
             let _ = w.unminimize();
             let _ = w.set_focus();
             return;
         }
-        match WebviewWindowBuilder::new(&app, "settings", WebviewUrl::App("settings.html".into()))
-            .title("AgentPet")
-            .inner_size(640.0, 620.0)
-            .resizable(false)
-            .build()
+        match dashboard_window(&app, "dashboard.html").build()
         {
             Ok(_) => dlog("open_settings: window created"),
             Err(e) => dlog(&format!("open_settings: BUILD FAILED: {e}")),
@@ -309,7 +316,7 @@ fn sync_project_windows(app: tauri::AppHandle, projects: Vec<String>) {
         }
         let url = format!("index.html?project={id}");
         let _ = WebviewWindowBuilder::new(&app, &label, WebviewUrl::App(url.into()))
-            .title("AgentPet")
+            .title("AgentMainy")
             .inner_size(260.0, 320.0)
             .position(1200.0 - (i as f64 + 1.0) * 60.0, 600.0)
             .transparent(true)
@@ -328,12 +335,11 @@ fn sync_project_windows(app: tauri::AppHandle, projects: Vec<String>) {
 #[tauri::command]
 fn set_lang(app: tauri::AppHandle, code: String) {
     write_lang(&code);
-    let (p, s, u, q) = tray_labels(&code);
+    let (p, s, q) = tray_labels(&code);
     if let Some(items) = app.try_state::<Mutex<TrayItems>>() {
         if let Ok(it) = items.lock() {
             let _ = it.show_pet.set_text(p);
             let _ = it.settings.set_text(s);
-            let _ = it.updates.set_text(u);
             let _ = it.quit.set_text(q);
         }
     }
@@ -346,11 +352,11 @@ fn set_tray_status(app: tauri::AppHandle, working: u32, waiting: u32) {
     if let Some(items) = app.try_state::<Mutex<TrayItems>>() {
         if let Ok(it) = items.lock() {
             let tip = if waiting > 0 {
-                format!("AgentPet , {waiting} waiting for you")
+                format!("AgentMainy , {waiting} waiting for you")
             } else if working > 0 {
-                format!("AgentPet , {working} working")
+                format!("AgentMainy , {working} working")
             } else {
-                "AgentPet".to_string()
+                "AgentMainy".to_string()
             };
             let _ = it.tray.set_tooltip(Some(tip));
         }
@@ -370,7 +376,7 @@ fn show_popover(app: &tauri::AppHandle) {
         Some(w) => w,
         None => {
             match WebviewWindowBuilder::new(app, "popover", WebviewUrl::App("popover.html".into()))
-                .title("AgentPet")
+                .title("AgentMainy")
                 .inner_size(300.0, 200.0)
                 .decorations(false)
                 .transparent(true)
@@ -462,7 +468,6 @@ pub fn run() {
             None,
         ))
         .plugin(tauri_plugin_notification::init())
-        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .invoke_handler(tauri::generate_handler![
             list_agents,
@@ -484,7 +489,10 @@ pub fn run() {
             open_popover,
             log_debug,
             set_hit_rect,
-            dock_drop
+            dock_drop,
+            team::team_open,
+            team::team_status,
+            team::team_stop
         ])
         .setup(|app| {
             server::start(app.handle().clone());
@@ -600,7 +608,7 @@ pub fn run() {
             // Tray menu , the pet window is frameless, so this is how you reach
             // Settings or quit the app. Labels start in the saved language; the
             // Settings switcher re-labels them live via the `set_lang` command.
-            let (p_lbl, s_lbl, u_lbl, q_lbl) = tray_labels(&read_lang());
+            let (p_lbl, s_lbl, q_lbl) = tray_labels(&read_lang());
             let pet_visible = dirs::config_dir()
                 .map(|d| d.join("AgentPet").join("petvisible"))
                 .and_then(|p| std::fs::read_to_string(p).ok())
@@ -609,11 +617,10 @@ pub fn run() {
             let show_pet_i = tauri::menu::CheckMenuItem::with_id(
                 app, "show_pet", p_lbl, true, pet_visible, None::<&str>)?;
             let settings_i = MenuItem::with_id(app, "settings", s_lbl, true, None::<&str>)?;
-            let updates_i = MenuItem::with_id(app, "check_updates", u_lbl, true, None::<&str>)?;
             let quit_i = MenuItem::with_id(app, "quit", q_lbl, true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&show_pet_i, &settings_i, &updates_i, &quit_i])?;
+            let menu = Menu::with_items(app, &[&show_pet_i, &settings_i, &quit_i])?;
             let mut tray = TrayIconBuilder::new()
-                .tooltip("AgentPet")
+                .tooltip("AgentMainy")
                 .menu(&menu)
                 .show_menu_on_left_click(false)
                 .on_tray_icon_event(|tray, event| {
@@ -637,16 +644,6 @@ pub fn run() {
                         set_pet_visible(app.clone(), !now_visible);
                     }
                     "settings" => open_settings_impl(app.clone()),
-                    "check_updates" => {
-                        // The updater plugin is driven from JS; the pet window is
-                        // always alive (hidden, never closed) so it receives this
-                        // and runs check()/downloadAndInstall() with notification
-                        // feedback. Gives Linux (appindicator has no tray-click)
-                        // and Windows a reliable Updates entry point.
-                        if let Some(win) = app.get_webview_window("pet") {
-                            let _ = win.emit("check-updates", ());
-                        }
-                    }
                     "quit" => app.exit(0),
                     _ => {}
                 });
@@ -657,7 +654,6 @@ pub fn run() {
             app.manage(Mutex::new(TrayItems {
                 show_pet: show_pet_i.clone(),
                 settings: settings_i.clone(),
-                updates: updates_i.clone(),
                 quit: quit_i.clone(),
                 tray,
             }));
@@ -675,12 +671,7 @@ pub fn run() {
                 if !m.exists() {
                     let h = app.handle().clone();
                     std::thread::spawn(move || {
-                        let _ = WebviewWindowBuilder::new(
-                            &h, "settings", WebviewUrl::App("settings.html?onboarding=1".into()))
-                            .title("AgentPet")
-                            .inner_size(640.0, 620.0)
-                            .resizable(false)
-                            .build();
+                        let _ = dashboard_window(&h, "dashboard.html?onboarding=1").build();
                     });
                     if let Some(parent) = m.parent() {
                         let _ = std::fs::create_dir_all(parent);
@@ -691,5 +682,5 @@ pub fn run() {
             Ok(())
         })
         .run(tauri::generate_context!())
-        .expect("error while running AgentPet");
+        .expect("error while running AgentMainy");
 }

@@ -1,140 +1,224 @@
-# AgentPet for Windows
+<div align="center">
 
-A desktop pet that floats on your screen and reacts in real time to your AI
-coding agents (Claude Code, Codex, Gemini CLI, Cursor, opencode, Windsurf,
-Antigravity, GitHub Copilot, Kiro CLI). Windows port of the macOS app, built with
-[Tauri](https://tauri.app) so it stays small (~10 MB) and reuses the same pet
-catalog + hook model.
+<img src="public/appicon.png" width="96" alt="AgentMainy" />
 
-> Status: feature-complete, builds on CI (`.msi` + NSIS `.exe`). Not yet
-> validated on a real Windows machine, and not code-signed (see
-> [SmartScreen](#smartscreen-no-code-signing-cert) below).
+# AgentMainy
 
-## Install
+**Your desktop pet, your AI agent team and your home, in one place.**
 
-WebView2 is preinstalled on Windows 10/11, so there are no other prerequisites.
+A pet that lives on your taskbar and reacts live to every AI coding agent you run,
+a dashboard that starts a whole **team of Claude Code agents** on any project,
+and a live view of your **Home Assistant** home, all in one small desktop app.
 
-### Scoop (recommended , no SmartScreen prompt)
+[![License: MIT](https://img.shields.io/badge/license-MIT-7c6cff?style=flat-square)](LICENSE)
+[![Tauri 2](https://img.shields.io/badge/Tauri-2-24C8DB?style=flat-square&logo=tauri&logoColor=white)](https://tauri.app)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript&logoColor=white)](src)
+[![Rust](https://img.shields.io/badge/Rust-2021-CE422B?style=flat-square&logo=rust&logoColor=white)](src-tauri)
+[![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4?style=flat-square&logo=windows&logoColor=white)](#quick-start)
+[![Home Assistant](https://img.shields.io/badge/Home%20Assistant-ready-41BDF5?style=flat-square&logo=homeassistant&logoColor=white)](home-assistant)
 
-```powershell
-scoop bucket add agentpet https://github.com/ntd4996/agentpet
-scoop install agentpet
+[Quick start](#quick-start) · [What you get](#what-you-get) · [How it works](#how-it-works) · [Where everything is](STRUCTURE.md) · [Credits](#credits)
+
+<br />
+
+<img src="docs/screenshots/overview.png" alt="The AgentMainy Overview: live agents, the pet's level, who is home and the agent team" width="900" />
+
+<sub>The Overview with demo data: four agents at work, the pet at level 5, two people home.</sub>
+
+</div>
+
+---
+
+## Three apps, one window
+
+<table>
+<tr>
+<td width="33%" valign="top">
+
+### 🐾 The pet
+Floats on your desktop or docks on the taskbar and **reacts in real time** to
+Claude Code, Codex, Gemini CLI, Cursor, Copilot, opencode, Windsurf,
+Antigravity and Kiro. It **eats the tokens** your agents burn, levels up
+through five stages and tells you when an agent **needs you**.
+
+</td>
+<td width="33%" valign="top">
+
+### 👥 The team
+Start **as many Claude Code agents as you want** on one project. They get
+roles (Bugfixer, Developer, Reviewer, Tester, Architect…), share **one
+Obsidian memory**, message each other and work off a **task board**, all in
+real terminals, right inside the dashboard.
+
+</td>
+<td width="33%" valign="top">
+
+### 🏠 The home
+Connect **Home Assistant** and see **who is home**, lock or unlock the
+**door**, check the **internet**, see which **appliances** are running, start
+**timers** and list the **devices online**, live, without opening another
+app.
+
+</td>
+</tr>
+</table>
+
+## What you get
+
+<table>
+<tr>
+<td width="50%"><img src="docs/screenshots/team.png" alt="The Team page with a running agent team" /></td>
+<td width="50%"><img src="docs/screenshots/home.png" alt="The Home page: who's home, door, internet, appliances, timers, devices online" /></td>
+</tr>
+<tr>
+<td align="center"><b>Team</b>: pick a role, the agent starts in a real terminal</td>
+<td align="center"><b>Home</b>: only what is there right now, updated live</td>
+</tr>
+<tr>
+<td width="50%"><img src="docs/screenshots/care.png" alt="The Care page: level, achievements and token burn" /></td>
+<td width="50%" valign="top">
+
+**The dashboard**
+
+- **Overview**: working / waiting agents, people home, tokens today, the
+  pet's level and your team, at a glance.
+- **Team**: suggests the folders your agents already work in, keeps running
+  while you look at other pages, opens in its own window on demand.
+- **Home**: finds everything by itself, no entity ids to configure. Risky
+  actions (unlock) need a second click.
+- **Pet, Care, Dock, History, General, About**: every AgentPet setting, in
+  the new design.
+- Click any agent to **jump to its terminal**.
+
+</td>
+</tr>
+</table>
+
+## Quick start
+
+> **Status:** v0.2.0 builds and all tests pass. There is no signed installer
+> release yet, so build it yourself (about 5 minutes the first time).
+
+**You need:** Windows 10/11 · [Node.js](https://nodejs.org) 20+ · [Rust](https://rustup.rs) ·
+[Claude Code](https://claude.com/claude-code) (for the Team) · optionally
+[Home Assistant](https://www.home-assistant.io) (for the Home page).
+
+```bash
+git clone https://github.com/ny-daniel-l/AgentMainy.git
+cd AgentMainy
+npm install
+npm run engine:install      # the team engine's own dependencies
+npm run tauri dev           # run it
+npm run tauri build         # or build the installer (src-tauri/target/release/bundle)
 ```
 
-Scoop downloads the portable build straight from the GitHub release, so the
-browser/SmartScreen download warning never appears.
+Then:
 
-### winget
+1. **Connect your agents**: Dashboard → **General** → switch on Claude, Codex, Cursor…
+2. **Pick a pet**: **Pet** → choose one, browse more or import your own spritesheet.
+3. **Start a team**: **Team** → pick a project folder → **Start team** → choose a role.
+4. **Connect your home**: **Home** → your Home Assistant address + a
+   [long-lived access token](https://www.home-assistant.io/docs/authentication/#your-account-profile).
 
-```powershell
-winget install ntd4996.AgentPet
-```
+<details>
+<summary><b>Coming from AgentPet?</b></summary>
 
-### Manual installer
+Your pet, its XP and all settings carry over: AgentMainy keeps AgentPet's app
+identifier and settings folder on purpose. After installing, open
+**General** and switch each agent off and on once, so its hook points to
+`AgentMainy.exe`.
 
-Download `AgentPet_<version>_x64-setup.exe` from the
-[releases](https://github.com/ntd4996/agentpet/releases) page. It installs
-per-user (no admin/UAC prompt). See [SmartScreen](#smartscreen-no-code-signing-cert)
-for the one-time "Run anyway" step.
-
-## SmartScreen (no code-signing cert)
-
-The installer is **not code-signed** (a cert costs money), so Windows SmartScreen
-may show *"Windows protected your PC"* on first run of the downloaded `.exe`.
-It is safe to bypass:
-
-1. Click **More info**.
-2. Click **Run anyway**.
-
-To avoid the prompt entirely, install via **Scoop** or **winget** (above) , those
-paths don't trigger SmartScreen.
+</details>
 
 ## How it works
 
+```mermaid
+flowchart LR
+  A[AI agents<br/>Claude · Codex · Cursor …] -- hooks --> S[AgentMainy<br/>local event server]
+  S --> P[🐾 Pet overlay]
+  S --> D[📊 Dashboard]
+  D -- starts --> U[👥 Team engine<br/>UltraClaude, Node.js]
+  U -- runs --> T[Claude Code agents]
+  T -- hooks --> S
+  D -- WebSocket --> H[🏠 Home Assistant]
 ```
-agent hook  ──(stdin JSON)──►  agentpet.exe hook --agent <kind>
-                                      │  POST /event
-                                      ▼
-                          localhost:47628 (Rust listener in the running app)
-                                      │  emit "agent-event"
-                                      ▼
-                          pet overlay window (Tauri webview, canvas sprite)
+
+- **Agents → pet.** Each agent's hook runs `agentpet hook --agent <kind>`,
+  which hands the event to the running app on `127.0.0.1`. It never blocks
+  an agent: it always exits 0.
+- **Team.** The dashboard starts the bundled
+  [UltraClaude](https://github.com/ZH-NICO/ultraclaude) engine for the folder
+  you pick. It listens on `127.0.0.1` only, behind a random access token.
+  Team agents are normal Claude Code sessions, so the pet watches them too.
+- **Home.** The dashboard talks to Home Assistant's WebSocket API with your
+  token, then follows live state changes. Nothing goes through a cloud.
+
+Want the full map? **[STRUCTURE.md](STRUCTURE.md)** explains every folder and
+file, how the parts talk and where your data is kept.
+
+<details>
+<summary><b>Project layout</b></summary>
+
+```
+src/
+  overlay/     the pet window, speech bubble, taskbar dock, right-click menu
+  pet/         sprite, care engine (XP, levels, hunger), catalog, chatter
+  agents/      live sessions, history, token usage
+  dashboard/   atoms → molecules → organisms → pages, plus services
+  shared/      translations (EN · VI · 简体 · 繁體) and icons
+src-tauri/     Rust: windows, tray, hooks, event server, CLI, team launcher
+engine/        the team engine (UltraClaude, vendored)
+home-assistant/  optional presence / Nuki / V-ZUG extras for Home Assistant
 ```
 
-- The same binary doubles as the hook CLI: `agentpet hook --agent claude` reads
-  the agent's hook payload on stdin and POSTs it to the running app. It always
-  exits 0 so it never blocks an agent (Copilot PreToolUse is fail-closed).
-- Hook configs are written to Windows paths (`%USERPROFILE%\.claude\settings.json`,
-  `\.codex\hooks.json`, ...) , identical formats to the macOS app.
-- Pets come from the public CDN (`pets.thenightwatcher.online/manifest.json`),
-  rendered from the 8x9 spritesheet (8 frames per state row).
-- The transparent overlay is **click-through**: only the pet's opaque rect
-  captures the mouse, so the empty area lets clicks reach the apps below. Drag
-  the pet to move it; its position is remembered across restarts.
+</details>
 
-## Features (parity with macOS)
+## Command line
 
-- 9 agents, same hook formats as macOS.
-- Pet picker (search / random) + "use your own spritesheet".
-- Bubble customization: theme (dark/light/system), opacity, font size/family,
-  themed phrases, per-agent custom messages, idle chatter toggle.
-- Multi-agent bubble (shows every active session at once) with a live elapsed
-  clock and per-tool live activity text (file being edited, command description).
-- Live preview in Settings, desktop notifications + chimes, autostart,
-  auto-update (Tauri updater, minisign-signed).
-- i18n: English / Tiếng Việt / 简体中文 with a runtime language switcher.
+The same program is also a small CLI, handy for scripts and for other agents:
 
-## Develop
+| Command | Does |
+|---|---|
+| `agentpet ls` | every agent the pet sees, with state and activity |
+| `agentpet peek <agent>` | one agent's state, project, title and activity |
+| `agentpet wait <agent> [-t SECS]` | wait until it stops working |
+| `agentpet send <agent> <text>` | type a message into that agent's terminal |
+| `agentpet run -- <command>` | wrap any CLI agent: working while it runs, done when it exits |
+
+A ready-made Claude Code skill for these lives in [`skill/`](skill/SKILL.md).
+
+## Privacy
+
+- The event server, the team engine and the Home Assistant connection run
+  **on your computer** and only use your own machine and your own network.
+  Pets themselves are downloaded from AgentPet's public pet catalog.
+- Your Home Assistant token is stored in the app on this computer only.
+- The optional router script in [`home-assistant/`](home-assistant) keeps the
+  router password on your Home Assistant. The app never sees it.
+- Optional and off by default: the pet's web profile / leaderboard sync.
+
+## Development
 
 ```bash
-cd windows
-npm install
-npm run tauri dev      # runs on macOS too (dev); click-through is Windows-only
+npm run dev     # the frontend alone (http://localhost:1420)
+npm run build   # type-check + bundle
+npm test        # TypeScript unit tests + team engine tests + Rust tests
 ```
 
-## Build (on Windows)
+## Credits
 
-```bash
-npm install
-npm run tauri build    # NSIS installer + MSI in src-tauri/target/release/bundle
-```
+AgentMainy stands on two great open-source projects, both MIT licensed:
 
-## Build via CI (no Windows machine needed)
+- 🐾 **[AgentPet](https://github.com/ntd4996/agentpet)** by
+  [Nguyễn Thành Đạt](https://github.com/ntd4996): the pet, its care engine,
+  the hook system and the agent watching this app grew from.
+- 👥 **[UltraClaude](https://github.com/ZH-NICO/ultraclaude)** by
+  [ZH-NICO](https://github.com/ZH-NICO): the team engine with roles, shared
+  memory and the task board.
 
-`.github/workflows/windows-build.yml` builds the installers on `windows-latest`:
+AgentMainy is an independent project and is not made or endorsed by
+Anthropic, Home Assistant or the authors above.
 
-- Run it manually from the **Actions** tab (workflow_dispatch) , the `.msi` and
-  `.exe` are uploaded as artifacts.
-- Push a tag like `win-v0.1.0` to also attach the installers, the portable
-  Scoop zip, and the signed updater manifest to a GitHub release.
+## License
 
-## Agents
-
-| Agent          | Config file                                  | Notes |
-|----------------|----------------------------------------------|-------|
-| Claude Code    | `~/.claude/settings.json`                    | works once installed |
-| Codex          | `~/.codex/hooks.json` + `config.toml`        | run `/hooks` → `t` once to trust |
-| Gemini CLI     | `~/.gemini/settings.json`                    | |
-| Cursor         | `~/.cursor/hooks.json`                        | |
-| opencode       | `~/.config/opencode/plugin/agentpet.js`      | JS plugin |
-| Windsurf       | `~/.codeium/windsurf/hooks.json`             | no "needs input" alerts |
-| Antigravity    | `~/.gemini/config/hooks.json`                | no "needs input" alerts |
-| GitHub Copilot | `~/.copilot/hooks/agentpet.json`             | Copilot CLI |
-| Kiro CLI       | `~/.kiro/agents/default.json`                | hooks the default agent |
-
-## Publishing the package manifests
-
-After a `win-v*` release is published:
-
-```bash
-node scripts/fill-package-hashes.mjs win-v0.1.0
-```
-
-This fills the version + SHA256 into `packaging/scoop/agentpet.json` and
-`packaging/winget/*`. Then:
-
-- **Scoop**: this repo doubles as the bucket , the manifest at
-  `windows/packaging/scoop/agentpet.json`. (Point the bucket subdir or copy it to
-  a `bucket/` folder as Scoop expects.)
-- **winget**: submit `packaging/winget/*` as a PR to
-  [microsoft/winget-pkgs](https://github.com/microsoft/winget-pkgs).
+[MIT](LICENSE) © ny-daniel-l, with the original copyrights of AgentPet and UltraClaude.

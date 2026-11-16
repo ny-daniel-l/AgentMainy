@@ -1,26 +1,23 @@
 {
-  "name": "agentpet-windows",
+  "name": "agentmainy",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
-  "description": "AgentPet for Windows , a desktop pet that watches your AI coding agents.",
+  "description": "AgentMainy: a desktop pet that watches your AI agents, runs a whole agent team, and keeps an eye on your home.",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "engine:install": "npm --prefix engine/ultraclaude install",
+    "test": "node --test \"tests/*.test.ts\" && npm --prefix engine/ultraclaude test && cargo test --manifest-path src-tauri/Cargo.toml"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.0.0",
     "@tauri-apps/plugin-autostart": "^2.0.0",
     "@tauri-apps/plugin-notification": "^2.0.0",
-    "@tauri-apps/plugin-process": "^2.0.0",
-    "@tauri-apps/plugin-updater": "^2.0.0",
-    "@types/three": "^0.170.0",
-    "three": "^0.170.0"
+    "@tauri-apps/plugin-process": "^2.0.0"
   },
   "devDependencies": {
-    "@gltf-transform/core": "^4.1.1",
-    "@gltf-transform/functions": "^4.1.1",
     "@tauri-apps/cli": "^2.0.0",
     "typescript": "^5.6.0",
     "vite": "^5.4.0"

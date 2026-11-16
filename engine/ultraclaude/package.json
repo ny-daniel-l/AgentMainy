@@ -1,0 +1,38 @@
+{
+  "name": "ultraclaude",
+  "version": "0.1.0",
+  "description": "Run a team of Claude Code agents side by side: shared Obsidian memory, roles, agent-to-agent messaging and a live dashboard.",
+  "type": "module",
+  "bin": {
+    "ultraclaude": "bin/ultraclaude.js"
+  },
+  "scripts": {
+    "start": "node bin/ultraclaude.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ZH-NICO/ultraclaude.git"
+  },
+  "homepage": "https://github.com/ZH-NICO/ultraclaude#readme",
+  "keywords": [
+    "claude",
+    "claude-code",
+    "agents",
+    "multi-agent",
+    "obsidian",
+    "mcp"
+  ],
+  "dependencies": {
+    "@fontsource/ibm-plex-mono": "^5.3.0",
+    "@fontsource/ibm-plex-sans": "^5.3.0",
+    "@lydell/node-pty": "^1.1.0",
+    "@xterm/addon-fit": "^0.10.0",
+    "@xterm/xterm": "^5.5.0",
+    "ws": "^8.18.0"
+  }
+}
