@@ -191,7 +191,8 @@ A ready-made Claude Code skill for these lives in [`skill/`](skill/SKILL.md).
 
 - The event server, the team engine and the Home Assistant connection run
   **on your computer** and only use your own machine and your own network.
-  Pets themselves are downloaded from AgentPet's public pet catalog.
+  Pets are downloaded from AgentPet's public pet catalog, and the pet's idle
+  chatter fetches Kanye quotes from [api.kanye.rest](https://api.kanye.rest) once a day.
 - Your Home Assistant token is stored in the app on this computer only.
 - The optional router script in [`home-assistant/`](home-assistant) keeps the
   router password on your Home Assistant. The app never sees it.
