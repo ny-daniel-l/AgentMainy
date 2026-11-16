@@ -1,0 +1,17 @@
+{
+  "identifier": "default",
+  "description": "Permissions for the pet overlay and the settings window.",
+  "windows": ["pet", "settings", "popover"],
+  "permissions": [
+    "core:default",
+    "core:window:allow-start-dragging",
+    "core:window:allow-set-size",
+    "core:window:allow-set-focus",
+    "autostart:allow-enable",
+    "autostart:allow-disable",
+    "autostart:allow-is-enabled",
+    "notification:default",
+    "updater:default",
+    "process:default"
+  ]
+}
