@@ -25,3 +25,18 @@ export function scheduler(render: () => void, isVisible: () => boolean): () => v
     requestAnimationFrame(() => { queued = false; render(); });
   };
 }
+
+/**
+ * Re-render only when `signature()` changed: Home Assistant sends updates for
+ * every entity every few seconds, and a page must not rebuild (and lose the
+ * text you are typing) for data it does not show.
+ */
+export function onlyWhenChanged(render: () => void, signature: () => string): (force?: boolean) => void {
+  let last = "";
+  return (force = false) => {
+    const sig = signature();
+    if (!force && sig === last) return;
+    last = sig;
+    render();
+  };
+}

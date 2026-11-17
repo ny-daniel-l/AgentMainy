@@ -125,10 +125,26 @@ class HomeAssistant {
     this.setStatus("off");
   }
 
-  /** Calls a service, e.g. call("lock", "lock", { entity_id: "lock.front" }). */
-  async call(domain: string, service: string, target: Record<string, unknown>, data: Record<string, unknown> = {}) {
-    const r = await this.send({ type: "call_service", domain, service, target, service_data: data });
+  /** Calls a service, e.g. call("lock", "lock", { entity_id: "lock.front" }). Pass target null for none. */
+  async call(domain: string, service: string, target: Record<string, unknown> | null, data: Record<string, unknown> = {}) {
+    const r = await this.send({ type: "call_service", domain, service, ...(target ? { target } : {}), service_data: data });
     if (!r.success) throw new Error(r.error?.message ?? "Service call failed");
+  }
+
+  /** Numeric history of `entityId` over the last `hours`, oldest first. */
+  async history(entityId: string, hours = 24): Promise<{ t: number; v: number }[]> {
+    const r = await this.send({
+      type: "history/history_during_period",
+      start_time: new Date(Date.now() - hours * 3_600_000).toISOString(),
+      entity_ids: [entityId],
+      minimal_response: true,
+      no_attributes: true,
+    });
+    const rows: any[] = r.result?.[entityId] ?? [];
+    // Minimal responses use "s" (state) and "lu" (seconds) after the first row.
+    return rows
+      .map((x) => ({ t: (x.lu ?? Date.parse(x.last_updated ?? x.last_changed) / 1000) * 1000, v: parseFloat(x.s ?? x.state) }))
+      .filter((p) => Number.isFinite(p.v) && Number.isFinite(p.t));
   }
 
   private send(msg: Record<string, unknown>): Promise<any> {

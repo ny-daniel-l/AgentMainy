@@ -496,6 +496,15 @@ pub fn run() {
         ])
         .setup(|app| {
             server::start(app.handle().clone());
+            // Installed app only (a dev build must not point your hooks at target\debug):
+            // move hooks written by AgentPet, or by an older install, to this program.
+            #[cfg(not(debug_assertions))]
+            std::thread::spawn(|| {
+                let fixed = hooks::refresh_paths();
+                if !fixed.is_empty() {
+                    dlog(&format!("hooks re-pointed to this program: {fixed:?}"));
+                }
+            });
             app.manage(Mutex::new(HitRect::default()));
 
             // Restore where the user last dragged the pet. First run (no saved

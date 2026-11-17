@@ -13,6 +13,21 @@
 # Needs /config/swisscom/swisscom_devices.py and /config/swisscom/password.txt
 # (only the router's admin password, chmod 600). Polled every minute.
 command_line:
+  # Raspberry Pi 5 fan (official Active Cooler): level 0-4, rpm and CPU temperature every 10 s.
+  # Home Assistant OS: these /sys paths are readable and writable from Home Assistant itself.
+  - sensor:
+      name: "Pi fan"
+      unique_id: pi_fan
+      icon: mdi:fan
+      scan_interval: 10
+      command: >-
+        printf '{"level":%s,"rpm":%s,"pwm":%s,"temp":%s}'
+        $(cat /sys/class/thermal/cooling_device0/cur_state)
+        $(cat /sys/class/hwmon/hwmon1/fan1_input)
+        $(cat /sys/class/hwmon/hwmon1/pwm1)
+        $(cat /sys/class/thermal/thermal_zone0/temp)
+      value_template: "{{ value_json.level }}"
+      json_attributes: [rpm, pwm, temp]
   - sensor:
       name: "Router devices"
       unique_id: router_devices
@@ -31,6 +46,42 @@ recorder:
       - sensor.router_devices
 
 automation:
+  # Auto = the Pi 5's own fan curve (50 / 60 / 67.5 / 75 C, 5 C hysteresis).
+  # Manual levels come from "Pi fan mode"; above 70 C the fan is forced to High,
+  # above 75 C to Max, so a setting can never let the Pi overheat.
+  - id: pi_fan_control
+    alias: "Pi fan control"
+    mode: queued
+    max: 3
+    triggers:
+      - trigger: state
+        entity_id: sensor.pi_cpu_temperature
+      - trigger: state
+        entity_id: input_select.pi_fan_mode
+      - trigger: homeassistant
+        event: start
+    conditions:
+      - condition: template
+        value_template: "{{ states('sensor.pi_cpu_temperature') | is_number }}"
+    actions:
+      - variables:
+          target: >-
+            {% set t = states('sensor.pi_cpu_temperature') | float(0) %}
+            {% set cur = states('sensor.pi_fan') | int(0) %}
+            {% set ns = namespace(l=0) %}
+            {% for tp in [50, 60, 67.5, 75] %}{% if t >= tp - (5 if cur > loop.index0 else 0) %}{% set ns.l = loop.index %}{% endif %}{% endfor %}
+            {% set manual = {'Off': 0, 'Low': 1, 'Medium': 2, 'High': 3, 'Max': 4}.get(states('input_select.pi_fan_mode'), 0) %}
+            {% set floor = 4 if t >= 75 else 3 if t >= 70 else 0 %}
+            {{ ns.l if is_state('input_select.pi_fan_mode', 'Auto') else [manual, floor] | max }}
+      - condition: template
+        value_template: "{{ target | int != states('sensor.pi_fan') | int(-1) }}"
+      - action: shell_command.pi_fan_level
+        data:
+          level: "{{ target | int }}"
+      - action: homeassistant.update_entity
+        target:
+          entity_id: sensor.pi_fan
+
   # One device_tracker per phone, matched by the LAST 3 bytes of its Wi-Fi
   # address: range extenders often rewrite the first 3. Link each tracker to
   # a person (Settings > People) and the dashboard shows who is home.
@@ -116,3 +167,31 @@ rest:
         unique_id: oven_running
         device_class: running
         value_template: "{{ value_json.Inactive != 'true' and value_json.Program != '' }}"
+
+# --- Raspberry Pi: fan mode, fan command, readable sensors -------------------
+input_select:
+  pi_fan_mode:
+    name: "Pi fan mode"
+    icon: mdi:fan-auto
+    options: [Auto, "Off", Low, Medium, High, Max]
+    initial: Auto
+
+shell_command:
+  pi_fan_level: "sh -c 'echo {{ [[level | int(0), 0] | max, 4] | min }} > /sys/class/thermal/cooling_device0/cur_state'"
+
+template:
+  - sensor:
+      - name: "Pi CPU temperature"
+        unique_id: pi_cpu_temperature
+        unit_of_measurement: "°C"
+        device_class: temperature
+        state_class: measurement
+        state: "{{ (state_attr('sensor.pi_fan', 'temp') | float(0) / 1000) | round(1) }}"
+        availability: "{{ state_attr('sensor.pi_fan', 'temp') is not none }}"
+      - name: "Pi fan speed"
+        unique_id: pi_fan_rpm
+        unit_of_measurement: "rpm"
+        icon: mdi:fan
+        state_class: measurement
+        state: "{{ state_attr('sensor.pi_fan', 'rpm') | int(0) }}"
+        availability: "{{ state_attr('sensor.pi_fan', 'rpm') is not none }}"

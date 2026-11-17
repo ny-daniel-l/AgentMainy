@@ -82,38 +82,59 @@ src/dashboard/
 │   ├── h.ts          h("div", props, ...children): the only DOM helper (text is never parsed as HTML)
 │   ├── icon.ts       line icons
 │   ├── badge.ts      dot(), pill(), stateTone()
-│   └── button.ts     button(), confirmButton() (click twice for risky actions)
+│   ├── button.ts     button(), confirmButton() (click twice for risky actions)
+│   ├── segmented.ts  a row of exclusive buttons (Auto | Off | Low …)
+│   └── toggle.ts     an on/off switch (a real checkbox underneath)
 ├── molecules/    atoms combined into a reusable piece
 │   ├── card.ts       titled panel: every block on the new pages
 │   ├── stat.ts       big number + label
 │   ├── row.ts        list row (lead, title, sub, trail) + rows() with "+N more"
-│   ├── empty.ts      empty state with an optional action
+│   ├── gauge.ts      ring gauge (the Pi's temperature, CPU, memory…)
+│   ├── sparkline.ts  24 h line chart with min / max / now
 │   ├── meter.ts      progress bar
+│   ├── setting-row.ts one line of the Settings page
+│   ├── empty.ts      empty state with an optional action
 │   └── toast.ts      short message at the bottom
 ├── organisms/    complete panels, know about one feature
+│   ├── radar-scope.ts    the radar: canvas PPI scope, sweep, afterglow, label placement
+│   ├── radar-panels.ts   contact list + event log beside the scope
+│   ├── house-board.ts    door & security, appliances
+│   ├── clock-board.ts    timers (live countdown) and alarm clocks
+│   ├── network-board.ts  internet + 24 h history, devices table, new devices
+│   ├── server-board.ts   the Pi: gauges, fan control, history, system, updates, power
+│   ├── ha-ui.ts          haGate() (not connected yet) and act() (service call + toast)
 │   ├── agents-panel.ts   live agents, click → focus its terminal
 │   ├── pet-panel.ts      level, stage, XP, hunger (read-only)
 │   ├── home-summary.ts   Home card on the Overview
-│   ├── home-board.ts     every card of the Home page
 │   ├── team-launcher.ts  pick a folder, start a team
 │   ├── team-frame.ts     the running team, embedded
 │   └── demo.ts           live preview of the bubble (from AgentPet)
-├── pages/        one file per sidebar entry
-│   ├── page.ts           the DashPage contract, goTo(), render scheduler
-│   ├── overview.ts       NEW: stats + agents + pet + home + team
-│   ├── team.ts           NEW: launcher or running team
-│   ├── home.ts           NEW: connect form or the live home board
-│   └── settings.ts       the original pages: General, Pet, Care, Dock, History, About
+├── pages/        one file per sidebar entry, each answers one question
+│   ├── page.ts           the DashPage contract, goTo(), scheduler(), onlyWhenChanged()
+│   ├── overview.ts       everything at a glance (+ mini radar, Pi summary)
+│   ├── team.ts           launcher or running team
+│   ├── radar.ts          who and what is home
+│   ├── house.ts          is the door locked, what is running
+│   ├── clock.ts          timers and alarm clocks
+│   ├── network.ts        is the internet up, what is connected
+│   ├── server.ts         is the Raspberry Pi healthy
+│   ├── settings.ts       Home Assistant, radar, server and appearance options
+│   └── original.ts       the original AgentPet pages: General, Pet, Care, Dock, History, About
 ├── services/     talk to the outside world, no DOM
 │   ├── sessions.ts       live sessions from the pet window's events
 │   ├── team.ts           start / find / stop the team engine (Rust commands)
-│   ├── home-assistant.ts WebSocket client, live entity cache, service calls
-│   └── home-model.ts     pure functions: who is home, locks, internet… (unit tested)
-└── main.ts       entry of dashboard.html: mounts pages, page titles, status pills
+│   ├── home-assistant.ts WebSocket client, live entity cache, service calls, history
+│   ├── home-model.ts     pure: who is home, locks, internet, Pi, alarms, devices (unit tested)
+│   ├── radar-model.ts    pure: contact placement, scan diff (unit tested)
+│   ├── radar.ts          the scan loop: every N s snapshot, diff, log, active ping
+│   ├── history-cache.ts  24 h history for the charts, cached 5 min
+│   ├── settings.ts       AgentMainy's own settings (am_settings)
+│   └── sound.ts          the sonar ping, synthesised with Web Audio
+└── main.ts       entry of dashboard.html: mounts pages, headings, status, accent, start page
 ```
 
 The original pages keep their markup in `dashboard.html` (same element ids)
-and their logic in `pages/settings.ts`, so every pet setting works exactly as
+and their logic in `pages/original.ts`, so every pet setting works exactly as
 before. They take on the new look through `styles/dashboard.css`, which is
 scoped to `body.dashboard` and loaded after `app.css`.
 
@@ -123,10 +144,11 @@ scoped to `body.dashboard` and loaded after `app.css`.
 src-tauri/src/
 ├── main.rs            the `agentpet` binary: CLI subcommands, otherwise starts the app
 ├── lib.rs             app setup: windows, tray, the dashboard window, Tauri commands
-├── team.rs            NEW: team engine launcher (team_open / team_status / team_stop)
+├── team.rs            team engine launcher (team_open / team_status / team_stop)
 ├── agents/
 │   ├── cli.rs         `agentpet hook --agent x` (reads hook JSON on stdin) and `agentpet run -- cmd`
-│   ├── hooks.rs       installs hooks into Claude Code, Codex, Gemini, Cursor, Copilot…
+│   ├── hooks.rs       installs hooks into Claude Code, Codex, Gemini, Cursor, Copilot…;
+│   │                  on start the installed app re-points them at itself (refresh_paths)
 │   ├── server.rs      localhost:47628: receives hook events, emits them to the windows
 │   ├── statemap.rs    hook event → working / waiting / done
 │   ├── transcript.rs  conversation titles, questions, token usage from transcripts
@@ -148,8 +170,8 @@ bundled into the installer as a resource.
 
 ## Home Assistant kit (`home-assistant/`)
 
-Optional. The Home page works with any Home Assistant as is. This folder adds
-presence from a Swisscom router, a new-device alert, Nuki MQTT extras and a
+Optional. The Home pages work with any Home Assistant as is. This folder adds
+presence from a Swisscom router, a new-device alert, Raspberry Pi 5 fan control, Nuki MQTT extras and a
 V-ZUG example. See [its README](home-assistant/README.md).
 
 ## How the parts talk
@@ -169,6 +191,7 @@ flowchart LR
   TA -- hooks too --> SRV
   DASH -- iframe --> UC
   DASH -- WebSocket --> HA[Home Assistant]
+  HA -- sensors + fan --> PI[Raspberry Pi]
 ```
 
 - **Agents → pet**: every agent's hook runs `agentpet hook`, which POSTs to
@@ -177,15 +200,18 @@ flowchart LR
 - **Team**: the dashboard calls `team_open(folder)`; `team.rs` runs
   UltraClaude's CLI in that folder and returns its private URL, shown in a
   frame. Team agents are normal Claude Code sessions, so the pet sees them too.
-- **Home**: the dashboard opens Home Assistant's WebSocket API with your
-  token, loads every entity once, then follows `state_changed` events.
+- **Home** (Radar, House, Clock, Network, Server): the dashboard opens Home
+  Assistant's WebSocket API with your token, loads every entity once, then
+  follows `state_changed` events. The radar scans every N seconds
+  (`services/radar.ts`) and, with active ping, asks the router for a fresh
+  device list for the next scan.
 
 ## Where your data lives
 
 | What | Where |
 |---|---|
 | Pet choice, care/XP, bubble + dock settings (`ap_*`, `agentpet.petSlug`) | the app's WebView storage (localStorage) |
-| Home Assistant address + token (`am_ha`), team folders (`am_team_*`) | the app's WebView storage (localStorage) |
+| Home Assistant address + token (`am_ha`), team folders (`am_team_*`), settings (`am_settings`), radar log (`am_radar_log`) | the app's WebView storage (localStorage) |
 | Pet position, language, visibility, first-run flag, `debug.log` | `%APPDATA%\AgentPet\` |
 | Agent hooks | each agent's own config (e.g. `%USERPROFILE%\.claude\settings.json`) |
 | Team state per project | `<project>\.ultraclaude\` (git-ignored) |

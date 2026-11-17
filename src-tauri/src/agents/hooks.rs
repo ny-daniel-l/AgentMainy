@@ -68,7 +68,7 @@ fn spec(kind: &str) -> Option<Spec> {
 pub fn catalog() -> Vec<AgentInfo> {
     let entries: &[(&str, &str, Option<&str>)] = &[
         ("claude", "Claude Code", None),
-        ("codex", "Codex", Some("After enabling, run /hooks in Codex and Trust the AgentPet hook")),
+        ("codex", "Codex", Some("After enabling, run /hooks in Codex and Trust the AgentMainy hook")),
         ("gemini", "Gemini CLI", None),
         ("cursor", "Cursor", None),
         ("opencode", "opencode", None),
@@ -109,9 +109,30 @@ pub fn ensure_installed(kind: &str) -> Result<bool, String> {
 }
 fn full_command(kind: &str) -> String { format!("{} {}", hook_command(), kind) }
 
+/// Our hook entries: written by AgentPet (`AgentPet.exe hook`) or by
+/// AgentMainy (`AgentMainy.exe hook`), so the rename keeps them recognisable.
 fn is_ours(cmd: &str) -> bool {
     let l = cmd.to_lowercase();
-    l.contains("agentpet") && l.contains("hook")
+    (l.contains("agentpet") || l.contains("agentmainy")) && l.contains("hook")
+}
+
+/// Re-points every installed hook at the running program when it lives
+/// somewhere else (the AgentPet -> AgentMainy rename, a moved install).
+/// `install` already swaps our old entries for new ones. Returns the kinds fixed.
+pub fn refresh_paths() -> Vec<String> {
+    let Ok(exe) = std::env::current_exe().map(|p| p.to_string_lossy().into_owned()) else { return vec![] };
+    let escaped = serde_json::to_string(&exe).unwrap_or_default();
+    let escaped = escaped.trim_matches('"');
+    catalog()
+        .into_iter()
+        .filter(|a| a.installed)
+        .filter(|a| {
+            let text = config_path(&a.kind).and_then(|p| std::fs::read_to_string(p).ok()).unwrap_or_default();
+            !text.contains(&exe) && !text.contains(escaped)
+        })
+        .filter(|a| install(&a.kind).is_ok())
+        .map(|a| a.kind)
+        .collect()
 }
 
 fn read_json(path: &PathBuf) -> Value {
@@ -262,7 +283,7 @@ fn binary_from(cmd: &str) -> String {
 fn opencode_plugin(binary: &str) -> String {
     let bin = serde_json::to_string(binary).unwrap_or_else(|_| format!("\"{}\"", binary));
     format!(
-        "// AgentPet integration (auto-generated, safe to delete to uninstall).\n\
+        "// AgentMainy integration (auto-generated, safe to delete to uninstall).\n\
          const AGENTPET_BIN = {bin}\n\
          export const AgentPet = async ({{ directory }}) => {{\n\
          \x20 const sid = \"opencode:\" + (directory || \"default\")\n\
@@ -276,8 +297,8 @@ fn opencode_plugin(binary: &str) -> String {
 fn pi_extension(binary: &str) -> String {
     let bin = serde_json::to_string(binary).unwrap_or_else(|_| format!("\"{}\"", binary));
     format!(
-        "// AgentPet integration (auto-generated, safe to delete to uninstall).\n\
-         // Reports Pi session lifecycle to AgentPet's menu bar app.\n\
+        "// AgentMainy integration (auto-generated, safe to delete to uninstall).\n\
+         // Reports Pi session lifecycle to AgentMainy.\n\
          import {{ spawn }} from \"node:child_process\"\n\
          const AGENTPET_BIN = {bin}\n\
          export default function (pi) {{\n\
@@ -321,4 +342,17 @@ fn enable_codex_hooks() {
     };
     if let Some(dir) = path.parent() { let _ = std::fs::create_dir_all(dir); }
     let _ = std::fs::write(&path, updated);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_ours;
+
+    #[test]
+    fn recognises_agentpet_and_agentmainy_hooks_only() {
+        assert!(is_ours(r#""C:\Users\x\AppData\Local\AgentPet\AgentPet.exe" hook --agent claude"#));
+        assert!(is_ours(r"C:\Users\x\AppData\Local\AgentMainy\AgentMainy.exe hook --agent codex"));
+        assert!(!is_ours("node C:/Users/x/.claude/statusline.js"));
+        assert!(!is_ours(r"C:\tools\AgentMainy.exe --open"));
+    }
 }

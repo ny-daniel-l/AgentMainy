@@ -13,7 +13,7 @@ export function homeSummary(goTo: (page: string) => void): HTMLElement {
     return card({ title: "Home", icon: "home" },
       empty("Connect Home Assistant to see who is home, your door and your internet.", {
         icon: "home",
-        action: button("Connect Home Assistant", () => goTo("home"), { variant: "primary", icon: "plug" }),
+        action: button("Connect Home Assistant", () => goTo("settings"), { variant: "primary", icon: "plug" }),
       }));
   }
   if (ha.status !== "online") {
@@ -25,7 +25,7 @@ export function homeSummary(goTo: (page: string) => void): HTMLElement {
   const lock = model.locks(list)[0];
   const net = model.internet(list);
   return card(
-    { title: "Home", icon: "home", aside: button("Open", () => goTo("home")) },
+    { title: "Home", icon: "home", aside: button("Radar", () => goTo("radar"), { icon: "radar" }) },
     h("div", { class: "summary-lines" },
       h("div", null, h("span", { class: "muted" }, "Home "),
         people.length ? h("b", null, people.map(model.nameOf).join(", ")) : h("span", null, "nobody")),

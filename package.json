@@ -1,7 +1,7 @@
 {
   "name": "agentmainy",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.3.0",
   "type": "module",
   "description": "AgentMainy: a desktop pet that watches your AI agents, runs a whole agent team, and keeps an eye on your home.",
   "scripts": {

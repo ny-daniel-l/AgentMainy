@@ -1,6 +1,6 @@
 [package]
 name = "agentpet"
-version = "0.2.0"
+version = "0.3.0"
 description = "AgentMainy: desktop pet + AI agent team + smart home dashboard"
 authors = ["ny-daniel-l", "ntd4996 (AgentPet)", "ZH-NICO (UltraClaude)"]
 edition = "2021"

@@ -104,3 +104,140 @@ export function ago(iso: string | undefined, now = Date.now()): string {
   if (min < 48 * 60) return `${Math.round(min / 60)} h ago`;
   return `${Math.round(min / 1440)} d ago`;
 }
+
+const num = (e?: Entity): number | undefined => {
+  const v = e ? parseFloat(e.state) : NaN;
+  return Number.isFinite(v) ? v : undefined;
+};
+
+export interface Server {
+  temp?: number;          // °C
+  cpu?: number;           // %
+  memory?: number;        // %
+  disk?: number;          // %
+  load?: number;          // 1-minute load average
+  fanLevel?: number;      // 0-4
+  fanRpm?: number;
+  fanMode?: string;       // Auto / Off / Low / Medium / High / Max
+  fanModes: string[];
+  netIn?: string;
+  netOut?: string;
+  ip?: string;
+  bootedAt?: string;      // ISO time of the last boot
+  powerOk?: boolean;      // false = under-voltage detected
+}
+
+/**
+ * The Raspberry Pi running Home Assistant, from the `sensor.pi_*` entities
+ * the kit sets up (home-assistant/README.md) plus the Raspberry Pi power check.
+ */
+export function server(list: Entity[]): Server {
+  const by = new Map(list.map((e) => [e.entity_id, e]));
+  const fan = by.get("sensor.pi_fan");
+  const mode = by.get("input_select.pi_fan_mode");
+  const power = by.get("binary_sensor.rpi_power_status");
+  return {
+    temp: num(by.get("sensor.pi_cpu_temperature")),
+    cpu: num(by.get("sensor.pi_cpu_load")),
+    memory: num(by.get("sensor.pi_memory_used")),
+    disk: num(by.get("sensor.pi_disk_used")),
+    load: num(by.get("sensor.pi_load_1m")),
+    fanLevel: num(fan),
+    fanRpm: fan?.attributes.rpm ?? num(by.get("sensor.pi_fan_speed")),
+    fanMode: mode?.state,
+    fanModes: mode?.attributes.options ?? [],
+    netIn: withUnit(by.get("sensor.pi_network_in")),
+    netOut: withUnit(by.get("sensor.pi_network_out")),
+    ip: by.get("sensor.pi_ip_address")?.state,
+    bootedAt: by.get("sensor.pi_last_boot")?.state,
+    powerOk: power ? power.state === "off" : undefined,
+  };
+}
+
+export interface Update {
+  id: string;
+  name: string;
+  installed: string;
+  latest: string;
+}
+
+/** Software with an update waiting (Home Assistant, the OS, add-ons). */
+export function updates(list: Entity[]): Update[] {
+  return list
+    .filter((e) => domainOf(e) === "update" && e.state === "on")
+    .map((e) => ({ id: e.entity_id, name: nameOf(e).replace(/ update$/i, ""), installed: e.attributes.installed_version ?? "?", latest: e.attributes.latest_version ?? "?" }));
+}
+
+export interface Alarm {
+  id: string;
+  name: string;
+  time: string;           // "07:30"
+  switchId?: string;      // input_boolean that arms it, if one is named like it
+  armed?: boolean;
+}
+
+/** Time-only input_datetimes, each paired with an input_boolean whose name starts with its name ("Wecker" + "Wecker aktiv"). */
+export function alarms(list: Entity[]): Alarm[] {
+  const switches = list.filter((e) => domainOf(e) === "input_boolean");
+  return list
+    .filter((e) => domainOf(e) === "input_datetime" && e.attributes.has_time && !e.attributes.has_date)
+    .map((e) => {
+      const name = nameOf(e);
+      const sw = switches.find((b) => nameOf(b).toLowerCase().startsWith(name.toLowerCase()));
+      return { id: e.entity_id, name, time: String(e.state).slice(0, 5), switchId: sw?.entity_id, armed: sw ? sw.state === "on" : undefined };
+    });
+}
+
+export interface Device {
+  name: string;
+  active: boolean;
+  mac: string;
+  ip?: string;
+  firstSeen?: string;
+}
+
+/** Every device the router knows, online first, router pseudo-entries removed. */
+export function allDevices(list: Entity[]): Device[] {
+  const source = list.find((e) => Array.isArray(e.attributes.devices) && e.attributes.devices.some((d: any) => d && "active" in d));
+  if (!source) return [];
+  return (source.attributes.devices as any[])
+    .filter((d) => d.name && !NOT_A_DEVICE.test(d.name) && !String(d.mac ?? "").startsWith("_"))
+    .map((d) => ({ name: String(d.name), active: !!d.active, mac: String(d.mac ?? ""), ip: d.ip && String(d.ip).includes(".") ? String(d.ip) : undefined, firstSeen: d.first_seen ?? undefined }))
+    .sort((a, b) => Number(b.active) - Number(a.active) || a.name.localeCompare(b.name));
+}
+
+/** The sensor holding the router's device list (refreshed on every radar ping). */
+export function routerSensorId(list: Entity[]): string | undefined {
+  return list.find((e) => Array.isArray(e.attributes.devices))?.entity_id;
+}
+
+/** Battery and "last action" sensors named after a lock: lock.x -> sensor.x_battery / sensor.x_last_action. */
+export function lockDetails(list: Entity[], lockId: string): { battery?: string; lastAction?: string } {
+  const base = lockId.replace(/^lock\./, "sensor.");
+  const by = new Map(list.map((e) => [e.entity_id, e]));
+  const last = by.get(`${base}_last_action`);
+  return {
+    battery: withUnit(by.get(`${base}_battery`)),
+    lastAction: last && last.state !== "unknown" ? last.state : undefined,
+  };
+}
+
+export interface ApplianceState {
+  name: string;
+  running: boolean;
+  program?: string;
+  ends?: string;
+}
+
+/** Every appliance with a "running" sensor, running ones first; pairs with x_program / x_ends. */
+export function appliances(list: Entity[]): ApplianceState[] {
+  const by = new Map(list.map((e) => [e.entity_id, e]));
+  const extra = (e: Entity, suffix: string) => {
+    const v = withUnit(by.get(e.entity_id.replace(/^binary_sensor\./, "sensor.").replace(/_running$/, suffix)));
+    return v && v !== "-" && v !== "Off" ? v : undefined;
+  };
+  return list
+    .filter((e) => domainOf(e) === "binary_sensor" && e.attributes.device_class === "running")
+    .map((e) => ({ name: nameOf(e).replace(/ running$/i, ""), running: e.state === "on", program: extra(e, "_program"), ends: extra(e, "_ends") }))
+    .sort((a, b) => Number(b.running) - Number(a.running) || a.name.localeCompare(b.name));
+}

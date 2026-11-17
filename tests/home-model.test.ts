@@ -61,3 +61,47 @@ test("ago() reads like a person would say it", () => {
   assert.equal(m.ago("2025-12-29T12:00:00Z", now), "3 d ago");
   assert.equal(m.ago(undefined, now), "");
 });
+
+const pi: Entity[] = [
+  e("sensor.pi_cpu_temperature", "48.5"), e("sensor.pi_cpu_load", "12"), e("sensor.pi_memory_used", "41.2"),
+  e("sensor.pi_disk_used", "9.8"), e("sensor.pi_fan", "2", { rpm: 3083 }),
+  e("input_select.pi_fan_mode", "Medium", { options: ["Auto", "Off", "Low", "Medium", "High", "Max"] }),
+  e("binary_sensor.rpi_power_status", "off"), e("sensor.pi_ip_address", "10.0.0.5"),
+  e("update.home_assistant_core_update", "on", { friendly_name: "Home Assistant Core update", installed_version: "2026.11.1", latest_version: "2026.11.2" }),
+  e("update.terminal", "off", { friendly_name: "Terminal update" }),
+  e("input_datetime.wecker", "07:30:00", { friendly_name: "Wecker", has_time: true, has_date: false }),
+  e("input_datetime.birthday", "2026-05-01", { friendly_name: "Birthday", has_time: false, has_date: true }),
+  e("input_boolean.wecker_aktiv", "on", { friendly_name: "Wecker aktiv" }),
+  e("sensor.front_door_battery", "97", { unit_of_measurement: "%" }),
+  e("sensor.front_door_last_action", "Unlocked (app)"),
+];
+
+test("server: the Pi's numbers from sensor.pi_*, power ok when the problem sensor is off", () => {
+  const s = m.server(pi);
+  assert.equal(s.temp, 48.5);
+  assert.equal(s.cpu, 12);
+  assert.equal(s.fanLevel, 2);
+  assert.equal(s.fanRpm, 3083);
+  assert.equal(s.fanMode, "Medium");
+  assert.equal(s.fanModes.length, 6);
+  assert.equal(s.powerOk, true);
+  assert.equal(m.server([]).temp, undefined);
+});
+
+test("updates: only the ones waiting", () => {
+  assert.deepEqual(m.updates(pi), [{ id: "update.home_assistant_core_update", name: "Home Assistant Core", installed: "2026.11.1", latest: "2026.11.2" }]);
+});
+
+test("alarms: time-only datetimes paired with the switch named like them", () => {
+  assert.deepEqual(m.alarms(pi), [{ id: "input_datetime.wecker", name: "Wecker", time: "07:30", switchId: "input_boolean.wecker_aktiv", armed: true }]);
+});
+
+test("allDevices lists offline devices too, online first; lockDetails by naming", () => {
+  assert.deepEqual(m.allDevices(house).map((d) => [d.name, d.active]), [["Ada-iPhone", true], ["Laptop", true], ["TV", false]]);
+  assert.deepEqual(m.lockDetails(pi, "lock.front_door"), { battery: "97 %", lastAction: "Unlocked (app)" });
+  assert.equal(m.routerSensorId(house), "sensor.router_devices");
+});
+
+test("appliances: running first, with their end time", () => {
+  assert.deepEqual(m.appliances(house), [{ name: "Oven", running: true, program: undefined, ends: "18:40" }, { name: "binary_sensor.washer_running", running: false, program: undefined, ends: undefined }]);
+});

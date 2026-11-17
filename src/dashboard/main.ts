@@ -1,24 +1,37 @@
 // Dashboard entry (dashboard.html). The sidebar switches pages; the original
 // AgentPet pages (General, Pet, Care, Dock, History, About) are wired by
-// pages/settings.ts exactly as before, the new ones by the DashPage modules.
+// pages/original.ts exactly as before, the new ones by the DashPage modules.
 
-import "./pages/settings"; // original pages: runs their setup on import
+import "./pages/original"; // the original AgentPet pages: run their setup on import
 import { h, mount } from "./atoms/h";
 import { pill } from "./atoms/badge";
 import { overviewPage } from "./pages/overview";
 import { teamPage } from "./pages/team";
-import { homePage } from "./pages/home";
-import type { DashPage } from "./pages/page";
+import { radarPage } from "./pages/radar";
+import { housePage } from "./pages/house";
+import { clockPage } from "./pages/clock";
+import { networkPage } from "./pages/network";
+import { serverPage } from "./pages/server";
+import { settingsPage } from "./pages/settings";
+import { goTo, type DashPage } from "./pages/page";
 import { counts, onSessions } from "./services/sessions";
 import { ha, haConfig } from "./services/home-assistant";
 import { peopleHome } from "./services/home-model";
+import { startRadar } from "./services/radar";
+import { ACCENTS, onSettings, settings, type Settings } from "./services/settings";
 
-const PAGES: DashPage[] = [overviewPage, teamPage, homePage];
+const PAGES: DashPage[] = [overviewPage, teamPage, radarPage, housePage, clockPage, networkPage, serverPage, settingsPage];
 
+// Each page answers one question.
 const HEADINGS: Record<string, [string, string]> = {
-  overview: ["Overview", "Your agents, your pet, your home and your team at a glance"],
+  overview: ["Overview", "Your agents, your home and your pet at a glance"],
   team: ["Team", "A whole team of Claude Code agents on one project, powered by UltraClaude"],
-  home: ["Home", "Your Home Assistant, live"],
+  radar: ["Radar", "Who and what is home right now"],
+  house: ["House", "Is the door locked, what is running"],
+  clock: ["Clock", "Timers and alarm clocks"],
+  network: ["Network", "Is the internet up, what is connected"],
+  server: ["Server", "Is the Raspberry Pi healthy"],
+  settings: ["Settings", "Home Assistant, radar, server and appearance"],
   pet: ["Pet", "Pick, import or create your pet"],
   care: ["Care", "Your pet eats the tokens your agents burn"],
   bubble: ["Dock & bubble", "How the pet, its dock and its speech bubble look"],
@@ -50,7 +63,15 @@ function renderStatus() {
   );
 }
 
-// The original tab handler (settings.ts) toggles .page.sel; this runs after it.
+/** Accent colour and reduced motion from the Settings page. */
+function applyLook(s: Settings) {
+  const [a, b] = ACCENTS[s.accent] ?? ACCENTS.violet;
+  document.body.style.setProperty("--am-accent", a);
+  document.body.style.setProperty("--am-accent-2", b);
+  document.body.classList.toggle("reduce-motion", s.reduceMotion);
+}
+
+// The original tab handler (pages/original.ts) toggles .page.sel; this runs after it.
 document.querySelector(".tabbar")!.addEventListener("click", (e) => {
   const tab = (e.target as HTMLElement).closest<HTMLButtonElement>(".tab");
   if (!tab?.dataset.tab || tab.dataset.tab === current) return;
@@ -61,6 +82,11 @@ document.querySelector(".tabbar")!.addEventListener("click", (e) => {
   PAGES.find((p) => p.id === current)?.show?.();
 });
 
+applyLook(settings());
+onSettings(applyLook);
+const cfg = haConfig();
+if (cfg) ha.connect(cfg).catch(() => {}); // keeps retrying in the background
+startRadar();
 for (const page of PAGES) {
   page.mount(document.getElementById(`page-${page.id}`)!);
 }
@@ -69,3 +95,5 @@ document.body.dataset.page = current;
 onSessions(renderStatus);
 ha.onChange(renderStatus);
 renderStatus();
+// Open the chosen start page (first-run onboarding opens Pet itself).
+if (settings().startPage !== "overview" && !location.search.includes("onboarding")) goTo(settings().startPage);
