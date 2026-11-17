@@ -206,16 +206,7 @@ npm run build   # type-check + bundle
 npm test        # TypeScript unit tests + team engine tests + Rust tests
 ```
 
-## Credits
 
-AgentMainy stands on two great open-source projects, both MIT licensed:
-
-- 🐾 **[AgentPet](https://github.com/ntd4996/agentpet)** by
-  [Nguyễn Thành Đạt](https://github.com/ntd4996): the pet, its care engine,
-  the hook system and the agent watching this app grew from.
-- 👥 **[UltraClaude](https://github.com/ZH-NICO/ultraclaude)** by
-  [ZH-NICO](https://github.com/ZH-NICO): the team engine with roles, shared
-  memory and the task board.
 
 AgentMainy is an independent project and is not made or endorsed by
 Anthropic, Home Assistant or the authors above.
