@@ -1,0 +1,23 @@
+name: Flipper bridge
+version: "0.1.0"
+slug: flipper_bridge
+description: Flipper Zero on USB, reachable over TCP for AgentMainy's Flipper page (Tailscale peers only)
+url: https://github.com/ny-daniel-l/AgentMainy/tree/main/home-assistant/flipper_bridge
+arch:
+  - aarch64
+  - amd64
+init: false
+startup: services
+boot: auto
+# host network: the client's real address reaches socat, so `allow` can filter it
+host_network: true
+uart: true
+usb: true
+options:
+  device: ""
+  port: 8023
+  allow: 100.64.0.0/10
+schema:
+  device: str?
+  port: port
+  allow: str
