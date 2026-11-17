@@ -94,8 +94,18 @@ fn config_path(kind: &str) -> Option<PathBuf> {
     Some(p)
 }
 
+/// This program's path as hooks call it, with forward slashes: agents run
+/// hooks through bash (Claude Code on Windows uses Git Bash, which eats an
+/// unquoted backslash and turns C:\Users\x into C:Usersx), PowerShell (Codex)
+/// or cmd, and all three accept C:/Users/x.
+fn exe_path() -> String {
+    std::env::current_exe()
+        .map(|p| p.to_string_lossy().replace('\\', "/"))
+        .unwrap_or_else(|_| "agentpet".into())
+}
+
 fn hook_command() -> String {
-    let exe = std::env::current_exe().map(|p| p.to_string_lossy().into_owned()).unwrap_or_else(|_| "agentpet".into());
+    let exe = exe_path();
     // Quote only when needed: agents that run hooks through PowerShell (Codex
     // CLI) reject a quoted path followed by arguments.
     if exe.contains(' ') { format!("\"{}\" hook --agent", exe) } else { format!("{} hook --agent", exe) }
@@ -120,15 +130,15 @@ fn is_ours(cmd: &str) -> bool {
 /// somewhere else (the AgentPet -> AgentMainy rename, a moved install).
 /// `install` already swaps our old entries for new ones. Returns the kinds fixed.
 pub fn refresh_paths() -> Vec<String> {
-    let Ok(exe) = std::env::current_exe().map(|p| p.to_string_lossy().into_owned()) else { return vec![] };
-    let escaped = serde_json::to_string(&exe).unwrap_or_default();
-    let escaped = escaped.trim_matches('"');
+    // The exact form hooks are written in (forward slashes need no JSON escaping),
+    // so a hook with a backslash path, AgentPet's path or a moved install is redone.
+    let exe = exe_path();
     catalog()
         .into_iter()
         .filter(|a| a.installed)
         .filter(|a| {
             let text = config_path(&a.kind).and_then(|p| std::fs::read_to_string(p).ok()).unwrap_or_default();
-            !text.contains(&exe) && !text.contains(escaped)
+            !text.contains(&exe)
         })
         .filter(|a| install(&a.kind).is_ok())
         .map(|a| a.kind)
@@ -346,7 +356,16 @@ fn enable_codex_hooks() {
 
 #[cfg(test)]
 mod tests {
-    use super::is_ours;
+    use super::{hook_command, is_ours};
+
+    #[test]
+    fn hook_command_survives_bash_powershell_and_cmd() {
+        // bash drops unquoted backslashes; forward slashes work in every shell
+        let cmd = hook_command();
+        assert!(!cmd.contains('\\'), "{cmd}");
+        assert!(cmd.ends_with(" hook --agent"), "{cmd}");
+        assert!(is_ours(&format!("{cmd} claude")));
+    }
 
     #[test]
     fn recognises_agentpet_and_agentmainy_hooks_only() {
