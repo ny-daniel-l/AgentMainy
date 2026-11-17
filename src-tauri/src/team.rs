@@ -19,6 +19,16 @@ fn engine_script(app: &tauri::AppHandle) -> Option<PathBuf> {
         .flatten()
         .map(|d| d.join("bin").join("ultraclaude.js"))
         .find(|p| p.exists())
+        .map(plain_path)
+}
+
+/// Node cannot run a script from a verbatim Windows path (`\\?\C:\...`, which
+/// resource_dir returns): it fails with "EISDIR: illegal operation on a directory, lstat 'C:'".
+fn plain_path(p: PathBuf) -> PathBuf {
+    match p.to_str().and_then(|s| s.strip_prefix(r"\\?\")) {
+        Some(rest) if rest.as_bytes().get(1) == Some(&b':') => PathBuf::from(rest),
+        _ => p,
+    }
 }
 
 /// Runs `node ultraclaude.js <args>` in `folder` and returns its stdout.
@@ -78,7 +88,16 @@ pub async fn team_stop(app: tauri::AppHandle, folder: String) -> Result<(), Stri
 
 #[cfg(test)]
 mod tests {
-    use super::find_url;
+    use super::{find_url, plain_path};
+    use std::path::PathBuf;
+
+    #[test]
+    fn drops_the_verbatim_prefix_node_cannot_handle() {
+        let plain = |s: &str| plain_path(PathBuf::from(s)).to_string_lossy().into_owned();
+        assert_eq!(plain(r"\\?\C:\Users\x\engine\ultraclaude\bin\ultraclaude.js"), r"C:\Users\x\engine\ultraclaude\bin\ultraclaude.js");
+        assert_eq!(plain(r"C:\Users\x\a.js"), r"C:\Users\x\a.js");
+        assert_eq!(plain(r"\\?\UNC\server\share\a.js"), r"\\?\UNC\server\share\a.js"); // not a drive path: unchanged
+    }
 
     #[test]
     fn finds_the_private_url_in_cli_output() {
