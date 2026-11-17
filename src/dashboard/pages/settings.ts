@@ -50,6 +50,7 @@ function connectionCard(error = ""): HTMLElement {
     h("div", { class: "form" }, h("label", null, h("span", null, "Address"), url), h("label", null, h("span", null, "Token"), token), go),
     error ? h("div", { class: "form-error", role: "alert" }, error) : null,
     h("p", { class: "muted small" }, "Create a token in Home Assistant: your profile → Security → Long-lived access tokens. It stays on this computer and is only sent to your Home Assistant."),
+    h("p", { class: "muted small" }, "Away from home too: list your Tailscale address first, then the home one, separated by a comma. The first that answers is used."),
   );
 }
 

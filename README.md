@@ -170,6 +170,10 @@ Then:
 3. **Start a team**: **Team** → pick a project folder → **Start team** → choose a role.
 4. **Connect your home**: **Settings** → your Home Assistant address + a
    [long-lived access token](https://www.home-assistant.io/docs/authentication/#your-account-profile).
+   **Away from home:** put [Tailscale](https://tailscale.com) on the laptop and
+   the [Tailscale add-on](https://github.com/hassio-addons/addon-tailscale) on the
+   Pi, then enter both addresses, Tailscale first: `http://homeassistant:8123, http://<home address>:8123`.
+   The first that answers is used. Nothing is opened to the internet.
 5. **Optional extras** (router presence, Pi fan, Nuki, V-ZUG): see [`home-assistant/`](home-assistant).
 
 <details>

@@ -105,3 +105,10 @@ test("allDevices lists offline devices too, online first; lockDetails by naming"
 test("appliances: running first, with their end time", () => {
   assert.deepEqual(m.appliances(house), [{ name: "Oven", running: true, program: undefined, ends: "18:40" }, { name: "binary_sensor.washer_running", running: false, program: undefined, ends: undefined }]);
 });
+
+test("addresses: one or several, each with http:// and no trailing slash", async () => {
+  const { normalizeUrl } = await import("../src/dashboard/services/home-assistant.ts");
+  assert.equal(normalizeUrl(" 192.168.1.5:8123/ "), "http://192.168.1.5:8123");
+  assert.equal(normalizeUrl("homeassistant:8123, https://ha.example/"), "http://homeassistant:8123, https://ha.example");
+  assert.equal(normalizeUrl("a:1  b:2"), "http://a:1, http://b:2");
+});

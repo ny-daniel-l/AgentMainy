@@ -26,10 +26,14 @@ export function saveHaConfig(cfg: HaConfig | null) {
   else localStorage.removeItem(KEY);
 }
 
-/** "192.168.1.5:8123" -> "http://192.168.1.5:8123" (no trailing slash). */
+/** "192.168.1.5:8123" -> "http://192.168.1.5:8123" (no trailing slash). Several
+ *  addresses (comma or space separated) are tried in order, e.g. Tailscale first
+ *  for away from home, then the home address. */
 export function normalizeUrl(input: string): string {
-  const u = input.trim().replace(/\/+$/, "");
-  return /^https?:\/\//i.test(u) ? u : `http://${u}`;
+  return input.split(/[\s,]+/).filter(Boolean).map((u) => {
+    u = u.replace(/\/+$/, "");
+    return /^https?:\/\//i.test(u) ? u : `http://${u}`;
+  }).join(", ");
 }
 
 class HomeAssistant {
@@ -52,11 +56,14 @@ class HomeAssistant {
     return () => this.listeners.delete(fn);
   }
 
-  /** Connects; resolves once the token is accepted, rejects if it is not. */
-  connect(cfg: HaConfig): Promise<void> {
+  /** Connects to the first address that answers; resolves once the token is
+   *  accepted, rejects if it is not or no address answers. */
+  connect(cfg: HaConfig, nth = 0): Promise<void> {
     this.disconnect();
     this.cfg = cfg;
     this.setStatus("connecting");
+    const urls = normalizeUrl(cfg.url).split(", ");
+    const url = urls[nth];
     return new Promise((resolve, reject) => {
       let settled = false;
       const done = (err?: string) => {
@@ -64,10 +71,17 @@ class HomeAssistant {
         settled = true;
         err ? reject(new Error(err)) : resolve();
       };
-      const ws = new WebSocket(normalizeUrl(cfg.url).replace(/^http/i, "ws") + "/api/websocket");
+      // this address does not answer: try the next one, else give up
+      const unreachable = (err: string) => {
+        if (settled) return;
+        if (nth + 1 >= urls.length) return done(err);
+        settled = true;
+        this.connect(cfg, nth + 1).then(resolve, reject);
+      };
+      const ws = new WebSocket(url.replace(/^http/i, "ws") + "/api/websocket");
       this.ws = ws;
       const timeout = window.setTimeout(() => {
-        done(`No answer from ${cfg.url}. Is the address right?`);
+        unreachable(`No answer from ${url}. Is the address right?`);
         ws.close();
       }, 8000);
 
@@ -102,7 +116,7 @@ class HomeAssistant {
       };
       ws.onerror = () => {
         window.clearTimeout(timeout);
-        done(`Cannot reach Home Assistant at ${cfg.url}.`);
+        unreachable(`Cannot reach Home Assistant at ${url}.`);
       };
       ws.onclose = () => {
         if (this.ws !== ws) return; // replaced by a newer connection
