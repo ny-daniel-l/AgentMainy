@@ -121,19 +121,27 @@ to who is home.
 | | **House** | Is the door locked, what is running (lock, door sensor, appliances) |
 | | **Clock** | Timers with live countdown, alarm clocks you set and arm |
 | | **Network** | Internet up and how fast (24 h), every device, new ones flagged |
-| | **Server** | The Pi: temperature, CPU, memory, disk, **fan**, updates, restart / reboot / shut down |
+| | **Server** | Is the Pi healthy: temperature, CPU, memory, disk, fan, 24 h history |
+| | **Pi control** | Fan modes and **boost**, restart Home Assistant, **reboot / shut down** the Pi, backup, updates |
 | Your pet | **Pet · Care · Dock · History** | Every AgentPet setting, in the new design |
 | App | **Settings · General · About** | Home Assistant, radar, server, accent colour, start page; agents and notifications |
 
 Risky actions (unlock the door, reboot or shut down the Pi, install an
-update) always need a **second click**.
+update) always need a **second click**. Pages update in place when data
+changes, so live values never make the screen flash.
+
+**The pet's panel** (hover or click the pet on the taskbar) has the same look
+and a **Home card**: a live mini radar, who is home, the door, the Pi and the
+internet, with shortcuts straight to Radar, Pi control or the dashboard.
 
 ### Raspberry Pi fan control
 
-On a Raspberry Pi 5 with the official Active Cooler the **Server** page
+On a Raspberry Pi 5 with the official Active Cooler the **Pi control** page
 switches the fan between **Auto** (the Pi's own curve: on at 50 °C, max at
-75 °C) and **Off / Low / Medium / High / Max**. A safety floor overrides any
-manual choice above 70 °C, so a setting can never let the Pi overheat. The
+75 °C) and **Off / Low / Medium / High / Max**, or **boosts** it to full speed
+for 10 or 30 minutes and then back to Auto by itself. A safety floor
+overrides any manual choice above 70 °C, so a setting can never let the Pi
+overheat. The
 Home Assistant side is in [`home-assistant/`](home-assistant).
 
 ## Quick start

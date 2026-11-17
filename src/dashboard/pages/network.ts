@@ -22,9 +22,7 @@ const render = onlyWhenChanged(() => {
   const gate = haGate("your internet and devices", goTo);
   if (gate) return mount(root, gate);
   const list = ha.entities();
-  // keep the cursor in the search box when the list re-renders while typing
-  const typing = document.activeElement?.classList.contains("dev-search");
-  const caret = typing ? (document.activeElement as HTMLInputElement).selectionStart : null;
+  // mount() patches in place, so the search box keeps focus and caret while typing
   mount(root, h("div", { class: "grid" },
     internetCard(list, history()),
     newDevicesCard(list),
@@ -32,11 +30,6 @@ const render = onlyWhenChanged(() => {
       (q) => { query = q; render(true); },
       (f) => { filter = f; render(true); }),
   ));
-  if (typing) {
-    const box = root.querySelector<HTMLInputElement>(".dev-search");
-    box?.focus();
-    if (box && caret !== null) box.setSelectionRange(caret, caret);
-  }
 }, () => {
   const list = ha.entities();
   return JSON.stringify([ha.status, model.internet(list), model.allDevices(list).map((d) => [d.name, d.active]), !!history()]);

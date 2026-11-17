@@ -8,7 +8,7 @@ export interface ButtonOpts {
   disabled?: boolean;
 }
 
-export function button(label: string, onClick: () => void, opts: ButtonOpts = {}): HTMLButtonElement {
+export function button(label: string, onClick: (e: Event) => void, opts: ButtonOpts = {}): HTMLButtonElement {
   return h(
     "button",
     {
@@ -29,23 +29,23 @@ export function button(label: string, onClick: () => void, opts: ButtonOpts = {}
  * Native confirm() dialogs are unreliable inside the app's webview.
  */
 export function confirmButton(label: string, confirmLabel: string, onConfirm: () => void, opts: ButtonOpts = {}): HTMLButtonElement {
-  let armed: number | undefined;
-  const btn = button(label, () => {
-    if (armed !== undefined) {
-      window.clearTimeout(armed);
-      armed = undefined;
+  // State lives on the button on screen (e.currentTarget): a live refresh
+  // patches in place and leaves an armed button alone (see mount()).
+  return button(label, (e) => {
+    const btn = e.currentTarget as HTMLButtonElement & { __armed?: number };
+    const disarm = () => {
+      window.clearTimeout(btn.__armed);
+      btn.__armed = undefined;
       btn.lastChild!.textContent = label;
       btn.classList.remove("armed");
+    };
+    if (btn.__armed !== undefined) {
+      disarm();
       onConfirm();
       return;
     }
     btn.lastChild!.textContent = confirmLabel;
     btn.classList.add("armed");
-    armed = window.setTimeout(() => {
-      armed = undefined;
-      btn.lastChild!.textContent = label;
-      btn.classList.remove("armed");
-    }, 3500);
+    btn.__armed = window.setTimeout(disarm, 3500);
   }, opts);
-  return btn;
 }

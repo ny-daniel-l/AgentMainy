@@ -1,0 +1,96 @@
+/* ===========================================================================
+   The pet's panel (hover / click on the docked pet) in the AgentMainy look.
+   Loaded after app.css; only appearance changes, every class stays the same.
+=========================================================================== */
+body.dock {
+  --dk-bg:
+    radial-gradient(120% 70% at 100% 0%, rgba(124, 108, 255, 0.16), transparent 60%),
+    radial-gradient(90% 60% at 0% 100%, rgba(63, 168, 255, 0.10), transparent 60%),
+    linear-gradient(180deg, #151624, #0d0e15);
+  --dk-fg: #eef0f7;
+  --dk-line: rgba(255, 255, 255, 0.08);
+  --dk-card: rgba(255, 255, 255, 0.04);
+  --dk-card-line: rgba(255, 255, 255, 0.08);
+  --dk-series: #7c6cff;
+  --dk-track: rgba(255, 255, 255, 0.08);
+  --dk-axis: rgba(255, 255, 255, 0.18);
+  --dk-c0: rgba(255, 255, 255, 0.06); --dk-c1: #3b3580; --dk-c2: #5a4fc4; --dk-c3: #7c6cff; --dk-c4: #3fa8ff;
+  --dk-grad: linear-gradient(135deg, #7c6cff, #3fa8ff);
+  --dk-sec: rgba(226, 229, 242, 0.62);
+}
+[data-theme="light"] body.dock {
+  --dk-bg: linear-gradient(180deg, #ffffff, #f2f3fa);
+  --dk-fg: #171a2c; --dk-line: rgba(20, 20, 60, 0.09);
+  --dk-card: rgba(124, 108, 255, 0.04); --dk-card-line: rgba(20, 20, 60, 0.08);
+  --dk-series: #6a5af0; --dk-track: rgba(20, 20, 60, 0.08); --dk-axis: rgba(20, 20, 60, 0.18);
+  --dk-c0: rgba(20, 20, 60, 0.06); --dk-c1: #cfc9ff; --dk-c2: #a69bff; --dk-c3: #7c6cff; --dk-c4: #3f6bdc;
+  --dk-sec: rgba(23, 26, 44, 0.6);
+}
+
+/* panel shell */
+body.dock .dk-panel {
+  padding: 16px; border-radius: 22px; font-family: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(124, 108, 255, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+body.dk-full .dk-panel { width: 760px; }
+body:not(.dk-full) .dk-panel { width: 330px; }
+body.dock .dk-panel h3 { font-size: 10.5px; letter-spacing: 0.09em; opacity: 1; color: var(--dk-sec); margin-bottom: 9px; }
+body.dock .dk-card { padding: 13px 14px; border-radius: 16px; margin-bottom: 12px; }
+body.dk-full .dk-dash { column-gap: 12px; }
+
+/* pet header: gradient level badge + gradient XP bar */
+body.dock .dk-ava { width: 60px; height: 60px; border-radius: 16px; background: radial-gradient(circle at 50% 60%, rgba(124, 108, 255, 0.25), transparent 70%); }
+body.dock .dk-title b { font-size: 16px; }
+body.dock .dk-lv { background: var(--dk-grad); color: #fff; box-shadow: 0 4px 12px rgba(124, 108, 255, 0.35); }
+body.dock .dk-xp { height: 7px; border-radius: 999px; background: var(--dk-track); }
+body.dock .dk-xp > div { border-radius: inherit; background: var(--dk-grad); box-shadow: 0 0 10px rgba(124, 108, 255, 0.5); }
+body.dock .dk-stats { color: var(--dk-sec); opacity: 1; }
+
+/* KPI and usage tiles: each a little card with a gradient top line */
+body.dock .dk-kpi, body.dock .dk-tiles > div {
+  position: relative; overflow: hidden; border-radius: 12px;
+  background: rgba(255, 255, 255, 0.045); border: 1px solid var(--dk-card-line);
+}
+body.dock .dk-kpi::before, body.dock .dk-tiles > div::before {
+  content: ""; position: absolute; inset: 0 0 auto 0; height: 2px; background: var(--dk-grad); opacity: 0.8;
+}
+body.dock .dk-kpi span, body.dock .dk-tiles span { color: var(--dk-sec); opacity: 1; }
+body.dock .dk-tiles b { background: var(--dk-grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+/* charts */
+body.dock .dk-by .track span { background: var(--dk-grad); border-radius: 999px; }
+body.dock .dk-by .track { border-radius: 999px; }
+body.dock .dk-pdot { background: var(--dk-grad); opacity: 0.9; }
+
+/* agent rows */
+body.dock .dk-row { padding: 7px 8px; border-radius: 10px; }
+body.dock .dk-row.focus:hover { background: rgba(124, 108, 255, 0.12); }
+body.dock .dk-row img { width: 18px; height: 18px; border-radius: 5px; background: #fff; padding: 1px; }
+
+/* ---- Home card: mini radar + status + shortcuts --------------------------- */
+.dk-home-row { display: flex; gap: 12px; align-items: center; }
+.dk-mini {
+  flex: 0 0 auto; width: 104px; height: 104px; border-radius: 50%; cursor: pointer;
+  background: radial-gradient(circle, rgba(61, 255, 143, 0.08), #05080a 72%);
+  box-shadow: 0 0 18px rgba(61, 255, 143, 0.12), inset 0 0 0 1px rgba(61, 255, 143, 0.2);
+}
+.dk-mini canvas { display: block; width: 100%; height: 100%; }
+.dk-home-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; font-size: 12px; }
+.dk-home-info > div { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.dk-home-info .k { color: var(--dk-sec); flex: none; }
+.dk-home-info .v { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.dk-pill { flex: none; padding: 1px 8px; border-radius: 999px; font-size: 10.5px; font-weight: 700; }
+.dk-pill.ok { background: rgba(52, 211, 153, 0.15); color: #86efc4; }
+.dk-pill.warn { background: rgba(251, 191, 36, 0.16); color: #fcd877; }
+.dk-pill.bad { background: rgba(248, 113, 113, 0.16); color: #fca5a5; }
+.dk-pill.off { background: rgba(107, 114, 128, 0.2); color: #c7cad3; }
+.dk-go { display: flex; gap: 6px; margin-top: 12px; }
+.dk-go button {
+  flex: 1; padding: 7px 6px; border-radius: 10px; border: 1px solid var(--dk-card-line);
+  background: rgba(255, 255, 255, 0.05); color: var(--dk-fg); font: inherit; font-size: 11.5px; font-weight: 600; cursor: pointer;
+}
+.dk-go button:hover { border-color: rgba(124, 108, 255, 0.55); background: rgba(124, 108, 255, 0.15); }
+.dk-go button.prim { background: var(--dk-grad); border-color: transparent; color: #fff; }
+.dk-home-empty { font-size: 12px; color: var(--dk-sec); }
+/* the compact hover panel: the Home card stays, slimmer */
+body:not(.dk-full) .dk-mini { width: 84px; height: 84px; }

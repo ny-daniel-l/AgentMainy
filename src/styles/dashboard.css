@@ -456,3 +456,43 @@ body.dashboard.reduce-motion * { animation: none !important; transition: none !i
 /* a segmented control directly inside a card fills its width */
 .dashboard .card-body > .segs { display: flex; flex-wrap: nowrap; }
 .dashboard .card-body > .segs .seg-btn { flex: 1; padding: 5px 4px; }
+.dashboard .mini-scope { cursor: pointer; }
+.dashboard .dim-legend { margin-top: 2px; opacity: .75; }
+
+/* ---- Pi control: action tiles + fan panel -------------------------------- */
+.dashboard .tile-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+.dashboard .tile-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+.dashboard .tile-row .tile { flex: 1 1 160px; }
+.dashboard .tile {
+  display: flex; align-items: center; gap: 12px; padding: 14px 15px; border-radius: 14px; text-align: left;
+  border: 1px solid var(--am-line); background: rgba(255, 255, 255, 0.04); color: var(--am-txt); font: inherit; cursor: pointer;
+  transition: background .15s ease, border-color .15s ease, transform .1s ease;
+}
+.dashboard .tile:hover { background: rgba(255, 255, 255, 0.08); border-color: rgba(124, 108, 255, 0.45); }
+.dashboard .tile:active { transform: translateY(1px); }
+.dashboard .tile:focus-visible { outline: 2px solid var(--am-accent-2); outline-offset: 2px; }
+.dashboard .tile-ic { width: 36px; height: 36px; padding: 8px; border-radius: 11px; background: rgba(124, 108, 255, 0.16); color: var(--am-accent); flex: 0 0 auto; }
+.dashboard .tile-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.dashboard .tile-text b { font-size: 13.5px; }
+.dashboard .tile-hint { font-size: 12px; color: var(--am-sec); }
+.dashboard .tile-danger .tile-ic { background: rgba(248, 113, 113, 0.14); color: var(--bad); }
+.dashboard .tile-danger:hover { border-color: rgba(248, 113, 113, 0.5); }
+.dashboard .tile-on { border-color: rgba(96, 165, 250, 0.6); background: rgba(96, 165, 250, 0.1); }
+.dashboard .tile.armed { background: rgba(248, 113, 113, 0.18); border-color: var(--bad); animation: am-pulse-red 1s ease-in-out infinite; }
+.dashboard .tile.armed .tile-hint { color: #fecaca; font-weight: 600; }
+.dashboard .fan-panel { display: grid; grid-template-columns: minmax(220px, 300px) 1fr; gap: 24px; align-items: center; }
+.dashboard .fan-readout { display: flex; align-items: center; gap: 18px; }
+.dashboard .fan-spin { width: 92px; height: 92px; color: var(--am-accent-2); flex: 0 0 auto; }
+.dashboard .fan-spin svg { width: 100%; height: 100%; }
+.dashboard .fan-spin.spinning svg { animation: am-spin var(--spin, 1s) linear infinite; }
+@keyframes am-spin { to { transform: rotate(360deg); } }
+.dashboard .fan-big { font-size: 34px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
+.dashboard .fan-big small { font-size: 14px; font-weight: 500; color: var(--am-sec); }
+.dashboard .fan-numbers { display: flex; flex-direction: column; gap: 8px; }
+.dashboard .fan-bars { display: flex; gap: 4px; }
+.dashboard .fan-bar { width: 22px; height: 8px; border-radius: 3px; background: rgba(255, 255, 255, 0.1); }
+.dashboard .fan-bar.zero { display: none; }
+.dashboard .fan-bar.on { background: var(--am-grad); box-shadow: 0 0 8px rgba(63, 168, 255, 0.4); }
+.dashboard .fan-modes .segs { display: flex; flex-wrap: nowrap; }
+.dashboard .fan-modes .seg-btn { flex: 1; padding: 8px 4px; font-size: 13px; }
+@media (max-width: 1080px) { .dashboard .fan-panel { grid-template-columns: 1fr; } }

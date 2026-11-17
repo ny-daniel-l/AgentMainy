@@ -26,12 +26,14 @@ function left(tm: Entity): string {
 
 function timerTile(tm: Entity): HTMLElement {
   const id = { entity_id: tm.entity_id };
-  const custom = h("input", { class: "field mini-field", type: "number", min: 1, max: 600, placeholder: "min", "aria-label": "Minutes" });
-  const startCustom = () => {
-    const m = Math.round(Number(custom.value));
+  // read the minutes from the field on screen (the one next to the clicked button)
+  const startCustom = (e: Event) => {
+    const box = (e.currentTarget as HTMLElement).closest(".custom")?.querySelector("input");
+    const m = Math.round(Number(box?.value));
     if (m > 0) void act("timer", "start", id, { duration: hms(m) }, `${model.nameOf(tm)}: ${m} min`);
   };
-  custom.addEventListener("keydown", (e) => { if (e.key === "Enter") startCustom(); });
+  const custom = h("input", { class: "field mini-field", type: "number", min: 1, max: 600, placeholder: "min", "aria-label": "Minutes",
+    onkeydown: (e: Event) => { if ((e as KeyboardEvent).key === "Enter") startCustom(e); } });
   const state = tm.state;
   return h("div", { class: `timer-tile${state === "active" ? " live" : ""}`, "data-id": tm.entity_id },
     h("div", { class: "timer-head" }, icon("timer"), h("b", null, model.nameOf(tm)), h("span", { class: "spacer" }),
@@ -64,8 +66,11 @@ export function alarmsCard(list: Entity[]): HTMLElement {
   return card({ title: "Alarm clocks", icon: "clock", wide: true },
     alarms.length
       ? h("div", { class: "alarm-list" }, ...alarms.map((a) => {
-          const time = h("input", { class: "field time-field", type: "time", value: a.time, "aria-label": `${a.name} time` });
-          time.addEventListener("change", () => act("input_datetime", "set_datetime", { entity_id: a.id }, { time: `${time.value}:00` }, `${a.name}: ${time.value}`));
+          const time = h("input", { class: "field time-field", type: "time", value: a.time, "aria-label": `${a.name} time`,
+            onchange: (e: Event) => {
+              const v = (e.currentTarget as HTMLInputElement).value;
+              void act("input_datetime", "set_datetime", { entity_id: a.id }, { time: `${v}:00` }, `${a.name}: ${v}`);
+            } });
           return h("div", { class: `alarm${a.armed ? " armed" : ""}` },
             h("div", { class: "alarm-time" }, a.time),
             h("div", { class: "alarm-text" }, h("b", null, a.name), h("span", { class: "muted" }, a.armed === undefined ? "always on" : a.armed ? "armed" : "off")),

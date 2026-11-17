@@ -24,10 +24,15 @@ function chipGroup(title: string, folders: string[], pick: (f: string) => void):
 }
 
 export function teamLauncher(onStart: (folder: string) => void, error = ""): HTMLElement {
-  const input = h("input", { class: "field", type: "text", placeholder: "C:\\path\\to\\your\\project", spellcheck: "false", "aria-label": "Project folder" });
-  const start = () => { const f = input.value.trim(); if (f) onStart(f); else input.focus(); };
-  input.addEventListener("keydown", (e) => { if (e.key === "Enter") start(); });
-  const pick = (f: string) => { input.value = f; start(); };
+  // read the folder from the field on screen (next to the clicked button)
+  const start = (e: Event) => {
+    const box = (e.currentTarget as HTMLElement).closest(".launch")?.querySelector("input");
+    const f = box?.value.trim();
+    if (f) onStart(f); else box?.focus();
+  };
+  const input = h("input", { class: "field", type: "text", placeholder: "C:\\path\\to\\your\\project", spellcheck: "false", "aria-label": "Project folder",
+    onkeydown: (e: Event) => { if ((e as KeyboardEvent).key === "Enter") start(e); } });
+  const pick = (f: string) => onStart(f);
   const fromAgents = agentProjects().slice(0, 6);
   const recent = recentFolders().filter((f) => !fromAgents.includes(f));
 

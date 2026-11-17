@@ -3,6 +3,7 @@
 // pages/original.ts exactly as before, the new ones by the DashPage modules.
 
 import "./pages/original"; // the original AgentPet pages: run their setup on import
+import { listen } from "@tauri-apps/api/event";
 import { h, mount } from "./atoms/h";
 import { pill } from "./atoms/badge";
 import { overviewPage } from "./pages/overview";
@@ -12,6 +13,7 @@ import { housePage } from "./pages/house";
 import { clockPage } from "./pages/clock";
 import { networkPage } from "./pages/network";
 import { serverPage } from "./pages/server";
+import { controlPage } from "./pages/control";
 import { settingsPage } from "./pages/settings";
 import { goTo, type DashPage } from "./pages/page";
 import { counts, onSessions } from "./services/sessions";
@@ -20,7 +22,7 @@ import { peopleHome } from "./services/home-model";
 import { startRadar } from "./services/radar";
 import { ACCENTS, onSettings, settings, type Settings } from "./services/settings";
 
-const PAGES: DashPage[] = [overviewPage, teamPage, radarPage, housePage, clockPage, networkPage, serverPage, settingsPage];
+const PAGES: DashPage[] = [overviewPage, teamPage, radarPage, housePage, clockPage, networkPage, serverPage, controlPage, settingsPage];
 
 // Each page answers one question.
 const HEADINGS: Record<string, [string, string]> = {
@@ -31,6 +33,7 @@ const HEADINGS: Record<string, [string, string]> = {
   clock: ["Clock", "Timers and alarm clocks"],
   network: ["Network", "Is the internet up, what is connected"],
   server: ["Server", "Is the Raspberry Pi healthy"],
+  control: ["Pi control", "Fan, power and maintenance for the Raspberry Pi"],
   settings: ["Settings", "Home Assistant, radar, server and appearance"],
   pet: ["Pet", "Pick, import or create your pet"],
   care: ["Care", "Your pet eats the tokens your agents burn"],
@@ -95,5 +98,11 @@ document.body.dataset.page = current;
 onSessions(renderStatus);
 ha.onChange(renderStatus);
 renderStatus();
-// Open the chosen start page (first-run onboarding opens Pet itself).
-if (settings().startPage !== "overview" && !location.search.includes("onboarding")) goTo(settings().startPage);
+// The pet's panel can ask for a page: an open dashboard hears the event, a
+// freshly opened one finds the page in am_goto. Otherwise: the start page
+// (first-run onboarding opens Pet itself).
+listen<string>("dashboard-goto", (e) => { localStorage.removeItem("am_goto"); goTo(e.payload); });
+const asked = localStorage.getItem("am_goto");
+localStorage.removeItem("am_goto");
+if (asked) goTo(asked);
+else if (settings().startPage !== "overview" && !location.search.includes("onboarding")) goTo(settings().startPage);

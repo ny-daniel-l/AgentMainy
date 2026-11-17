@@ -10,6 +10,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { type Session, basename, agentLabel } from "../agents/state";
 import { agentIconUrl, uiIcon } from "../shared/icons";
 import { elapsedString, readBubbleConfig } from "./bubble";
+import { homeOpen, initHome, renderHome } from "./dock-home";
 import { savedSlug, petDisplayName, getLibrary } from "../pet/catalog";
 import { t } from "../shared/i18n";
 import * as care from "../pet/care";
@@ -430,6 +431,7 @@ function refresh() {
   put(tokensEl, tokensHtml());
   limitsH.textContent = t("Limits");
   put(ghEl, githubHtml());
+  renderHome();
   panel.querySelectorAll<HTMLElement>("[data-since]").forEach((el) => {
     el.textContent = elapsedString(Number(el.dataset.since));
   });
@@ -443,6 +445,7 @@ function setExpanded(v: boolean, asFull = false) {
   expanded = v;
   full = nextFull;
   document.body.classList.toggle("dk-open", v);
+  homeOpen(v);
   // Set the layout class only when opening; on close leave it so the panel fades
   // out in its current layout instead of flashing the other one.
   if (v) document.body.classList.toggle("dk-full", full);
@@ -507,6 +510,7 @@ export function init(o: {
     `<section class="dk-card dk-pet"><div class="dk-head"></div></section>` +
     `<section class="dk-card dk-glance"></section>` +
     `<section class="dk-card dk-agents-c"><div class="dk-agents"></div></section>` +
+    `<section class="dk-card dk-home"></section>` +
     `<section class="dk-card dk-usage"><div class="dk-tokens"></div></section>` +
     `<section class="dk-card dk-sys"><div class="dk-limits"><h3></h3></div><div class="dk-gh"></div></section>` +
     `</div>`;
@@ -514,6 +518,7 @@ export function init(o: {
   [head, glanceEl, agentsEl, tokensEl, limitsH, ghEl] =
     [q(".dk-head"), q(".dk-glance"), q(".dk-agents"), q(".dk-tokens"), q(".dk-limits h3"), q(".dk-gh")];
   q(".dk-limits").appendChild(o.limitsWrap);
+  initHome(q(".dk-home")); // AgentMainy: radar, who is home, door, Pi, internet
   // A small live pet in the header (its own canvas, kept out of head's innerHTML
   // so refresh() doesn't wipe it). Drawn from the main sprite each refresh.
   avaCanvas = document.createElement("canvas");

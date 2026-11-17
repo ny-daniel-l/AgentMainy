@@ -43,8 +43,8 @@ export function devicesCard(list: Entity[], query: string, filter: DeviceFilter,
   const shown = all
     .filter((d) => filter === "all" || (filter === "online") === d.active)
     .filter((d) => !q || d.name.toLowerCase().includes(q) || (d.ip ?? "").includes(q));
-  const search = h("input", { class: "field dev-search", type: "search", placeholder: "Search name or IP", value: query, "aria-label": "Search devices" });
-  search.addEventListener("input", () => onQuery(search.value));
+  const search = h("input", { class: "field dev-search", type: "search", placeholder: "Search name or IP", "aria-label": "Search devices",
+    oninput: (e: Event) => onQuery((e.currentTarget as HTMLInputElement).value) });
   const week = Date.now() - 7 * 86_400_000;
   return card(
     { title: "Devices", icon: "devices", wide: true, aside: h("span", { class: "count" }, `${all.filter((d) => d.active).length} online / ${all.length}`) },

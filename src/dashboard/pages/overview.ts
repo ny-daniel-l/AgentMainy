@@ -27,9 +27,13 @@ let mini: RadarScope;
 function radarCard(): HTMLElement {
   const c = radarState().contacts;
   const n = (k: string) => c.filter((x) => x.kind === k).length;
+  const people = c.filter((x) => x.kind === "person").map((x) => x.label);
   return card({ title: "Radar", icon: "radar", aside: button("Open", () => goTo("radar"), { icon: "radar" }) },
-    h("div", { class: "mini-scope", style: `--radar:${RADAR_COLORS[settings().radarColor]}` }, miniCanvas),
-    h("div", { class: "mini-legend" }, `◆ ${n("person")} people   ■ ${n("device")} devices${n("unknown") ? `   ▲ ${n("unknown")} unknown` : ""}`),
+    // data-keep: the live canvas is put in once and refreshes never touch it
+    h("div", { class: "mini-scope", "data-keep": true, style: `--radar:${RADAR_COLORS[settings().radarColor]}`,
+      role: "button", tabindex: 0, title: "Open the radar", onclick: () => goTo("radar") }),
+    h("div", { class: "mini-legend" }, people.length ? `◆ ${people.join(", ")}` : "◆ nobody home"),
+    h("div", { class: "mini-legend dim-legend" }, `■ ${n("device")} devices${n("unknown") ? `   ▲ ${n("unknown")} unknown` : ""}`),
   );
 }
 
@@ -89,6 +93,9 @@ function render() {
       teamCard(),
     ),
   );
+  // the slot is new on the first render: give it the canvas once
+  const slot = root.querySelector<HTMLElement>(".mini-scope");
+  if (slot && miniCanvas.parentElement !== slot) slot.append(miniCanvas);
 }
 
 const queue = scheduler(render, () => visible);

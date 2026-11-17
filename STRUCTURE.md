@@ -48,7 +48,7 @@ src/
 ├── agents/       live agent sessions, history, token usage
 ├── shared/       translations + icons used everywhere
 ├── dashboard/    the dashboard window (atomic design, below)
-└── styles/       app.css (overlay, popover, original pages) + dashboard.css
+└── styles/       app.css (overlay, popover, original pages), dashboard.css, dock.css (the pet panel's look)
 ```
 
 | File | What it does |
@@ -56,6 +56,7 @@ src/
 | `overlay/main.ts` | Entry of `index.html`. Draws the pet, listens to agent events, drives mood, bubble, notifications, sounds, split pets, the dock. |
 | `overlay/bubble.ts` | The speech bubble: layout tokens, list / carousel / compact modes, click-to-focus rows. |
 | `overlay/dock.ts` | Docks the pet on the taskbar: peeking, the chip per agent, the hover panel (agents, usage, limits, GitHub year). |
+| `overlay/dock-home.ts` | The Home card in that panel: mini radar, who is home, door, Pi, internet, shortcuts into the dashboard. |
 | `overlay/popover.ts` | Entry of `popover.html`: agent count, show pet, size, Dashboard, Quit. |
 | `pet/pet.ts` | Spritesheet pet: slicing the 8×9 sheet, frames per mood, hit-testing. |
 | `pet/care.ts` | Tamagotchi engine: tokens → XP → levels → five stages, hunger, streaks, achievements. |
@@ -79,7 +80,8 @@ in this list, never the other way round.
 ```
 src/dashboard/
 ├── atoms/        smallest pieces, no app knowledge
-│   ├── h.ts          h("div", props, ...children): the only DOM helper (text is never parsed as HTML)
+│   ├── h.ts          h("div", props, ...children) + mount(): builds and *patches* the page in place
+│   │                 (no flicker on live refresh; text is never parsed as HTML; data-keep / data-id)
 │   ├── icon.ts       line icons
 │   ├── badge.ts      dot(), pill(), stateTone()
 │   ├── button.ts     button(), confirmButton() (click twice for risky actions)
@@ -93,6 +95,7 @@ src/dashboard/
 │   ├── sparkline.ts  24 h line chart with min / max / now
 │   ├── meter.ts      progress bar
 │   ├── setting-row.ts one line of the Settings page
+│   ├── action-tile.ts big action button (icon, title, hint), optional second-click confirm
 │   ├── empty.ts      empty state with an optional action
 │   └── toast.ts      short message at the bottom
 ├── organisms/    complete panels, know about one feature
@@ -101,7 +104,8 @@ src/dashboard/
 │   ├── house-board.ts    door & security, appliances
 │   ├── clock-board.ts    timers (live countdown) and alarm clocks
 │   ├── network-board.ts  internet + 24 h history, devices table, new devices
-│   ├── server-board.ts   the Pi: gauges, fan control, history, system, updates, power
+│   ├── server-board.ts   the Pi status: gauges, 24 h temperature, system
+│   ├── control-board.ts  the Pi actions: fan modes + boost, restart / reboot / shut down, backup, updates
 │   ├── ha-ui.ts          haGate() (not connected yet) and act() (service call + toast)
 │   ├── agents-panel.ts   live agents, click → focus its terminal
 │   ├── pet-panel.ts      level, stage, XP, hunger (read-only)
@@ -118,6 +122,7 @@ src/dashboard/
 │   ├── clock.ts          timers and alarm clocks
 │   ├── network.ts        is the internet up, what is connected
 │   ├── server.ts         is the Raspberry Pi healthy
+│   ├── control.ts        Pi control: do things to the Pi
 │   ├── settings.ts       Home Assistant, radar, server and appearance options
 │   └── original.ts       the original AgentPet pages: General, Pet, Care, Dock, History, About
 ├── services/     talk to the outside world, no DOM

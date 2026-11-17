@@ -1,6 +1,8 @@
 // Server: the Raspberry Pi running Home Assistant.
 import { h, mount } from "../atoms/h";
-import { fanCard, healthCard, powerCard, systemCard, tempHistoryCard, updatesCard } from "../organisms/server-board";
+import { button } from "../atoms/button";
+import { card } from "../molecules/card";
+import { healthCard, systemCard, tempHistoryCard } from "../organisms/server-board";
 import { haGate } from "../organisms/ha-ui";
 import { ha } from "../services/home-assistant";
 import { cachedHistory } from "../services/history-cache";
@@ -17,13 +19,14 @@ const render = onlyWhenChanged(() => {
   const gate = haGate("your Raspberry Pi", goTo);
   if (gate) return mount(root, gate);
   const list = ha.entities();
+  const ups = model.updates(list).length;
   mount(root, h("div", { class: "grid" },
     healthCard(list),
-    fanCard(list),
     tempHistoryCard(tempHistory()),
     systemCard(list),
-    updatesCard(list),
-    powerCard(),
+    card({ title: "Pi control", icon: "plug" },
+      h("p", { class: "muted small" }, `Fan, restart, reboot, shut down, backups${ups ? ` and ${ups} update${ups > 1 ? "s" : ""} waiting` : " and updates"}.`),
+      button("Open Pi control", () => goTo("control"), { variant: "primary", icon: "plug" })),
   ));
 }, () => {
   const list = ha.entities();

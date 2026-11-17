@@ -28,10 +28,13 @@ function connectionCard(error = ""): HTMLElement {
   }
   const url = h("input", { class: "field", type: "text", placeholder: "http://homeassistant.local:8123", spellcheck: "false", "aria-label": "Home Assistant address" });
   const token = h("input", { class: "field", type: "password", placeholder: "Long-lived access token", autocomplete: "off", "aria-label": "Access token" });
-  const go = button("Connect", async () => {
-    const next = { url: normalizeUrl(url.value), token: token.value.trim() };
-    if (!url.value.trim() || !next.token) return mount(root, ...cards("Enter the address and a token."));
-    go.disabled = true;
+  const go = button("Connect", async (e) => {
+    // read the fields on screen (the form next to the clicked button)
+    const btn = e.currentTarget as HTMLButtonElement;
+    const [u, tk] = [...btn.closest(".form")!.querySelectorAll("input")].map((i) => i.value.trim());
+    const next = { url: normalizeUrl(u), token: tk };
+    if (!u || !tk) return mount(root, ...cards("Enter the address and a token."));
+    btn.disabled = true;
     try {
       await ha.connect(next);
       saveHaConfig(next);
@@ -52,8 +55,8 @@ function connectionCard(error = ""): HTMLElement {
 
 function radarCard(): HTMLElement {
   const s = settings();
-  const volume = h("input", { class: "range", type: "range", min: 0, max: 1, step: 0.05, value: s.radarVolume, "aria-label": "Ping volume" });
-  volume.addEventListener("change", () => updateSettings({ radarVolume: Number(volume.value) }));
+  const volume = h("input", { class: "range", type: "range", min: 0, max: 1, step: 0.05, value: s.radarVolume, "aria-label": "Ping volume",
+    onchange: (e: Event) => updateSettings({ radarVolume: Number((e.currentTarget as HTMLInputElement).value) }) });
   return card({ title: "Radar", icon: "radar" },
     settingRow("Ping every", "One sweep of the beam, one scan.",
       segmented([5, 10, 15, 30, 60].map((v) => ({ value: v, label: `${v} s` })), s.radarInterval, (v) => updateSettings({ radarInterval: v }), "Ping interval")),
@@ -81,13 +84,13 @@ function serverCard(): HTMLElement {
   );
 }
 
-const PAGES = [["overview", "Overview"], ["radar", "Radar"], ["team", "Team"], ["house", "House"], ["clock", "Clock"], ["network", "Network"], ["server", "Server"]];
+const PAGES = [["overview", "Overview"], ["radar", "Radar"], ["team", "Team"], ["house", "House"], ["clock", "Clock"], ["network", "Network"], ["server", "Server"], ["control", "Pi control"]];
 
 function appearanceCard(): HTMLElement {
   const s = settings();
-  const start = h("select", { class: "field select", "aria-label": "Start page" },
+  const start = h("select", { class: "field select", "aria-label": "Start page",
+    onchange: (e: Event) => updateSettings({ startPage: (e.currentTarget as HTMLSelectElement).value }) },
     ...PAGES.map(([v, label]) => h("option", { value: v, selected: v === s.startPage }, label)));
-  start.addEventListener("change", () => updateSettings({ startPage: start.value }));
   return card({ title: "Appearance", icon: "gear" },
     settingRow("Accent", "",
       h("div", { class: "swatches" }, ...(Object.keys(ACCENTS) as Accent[]).map((a) => h("button", {
