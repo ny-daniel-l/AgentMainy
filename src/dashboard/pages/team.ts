@@ -12,6 +12,7 @@ import type { DashPage } from "./page";
 
 let root: HTMLElement;
 let shownFolder: string | null = null;
+let shownUrl = "";
 
 function launcher(error = "") {
   shownFolder = null;
@@ -21,6 +22,7 @@ function launcher(error = "") {
 
 function frame(folder: string, url: string) {
   shownFolder = folder;
+  shownUrl = url;
   root.classList.add("full");
   mount(root, teamFrame(folder, url, {
     onSwitch: () => launcher(),
@@ -54,6 +56,18 @@ async function restore() {
   if (url) frame(folder, url);
 }
 
+/** The engine stops itself a minute after its window lost the connection (the
+ *  laptop slept, say): then the frame only says "Failed to fetch". Start it again. */
+async function revive() {
+  const folder = shownFolder;
+  if (!folder) return;
+  const url = await runningTeam(folder).catch(() => null);
+  if (folder === shownFolder && url !== shownUrl) await start(folder);
+}
+
+// back at the window after sleep or another app: check the team is still there
+window.addEventListener("focus", () => { if (document.body.dataset.page === "team") void revive(); });
+
 export const teamPage: DashPage = {
   id: "team",
   mount(el) {
@@ -61,7 +75,7 @@ export const teamPage: DashPage = {
     launcher();
   },
   show() {
-    if (shownFolder) return;
+    if (shownFolder) return void revive();
     launcher(); // fresh suggestions: agents may have started since
     void restore();
   },
