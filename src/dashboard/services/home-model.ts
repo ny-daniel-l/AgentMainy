@@ -120,6 +120,7 @@ export interface Server {
   fanRpm?: number;
   fanMode?: string;       // Auto / Off / Low / Medium / High / Max
   fanModes: string[];
+  fanBoost: boolean;      // script.pi_fan_boost is running (Max, then Auto when its timer ends)
   netIn?: string;
   netOut?: string;
   ip?: string;
@@ -146,12 +147,26 @@ export function server(list: Entity[]): Server {
     fanRpm: fan?.attributes.rpm ?? num(by.get("sensor.pi_fan_speed")),
     fanMode: mode?.state,
     fanModes: mode?.attributes.options ?? [],
+    fanBoost: by.get("script.pi_fan_boost")?.state === "on",
     netIn: withUnit(by.get("sensor.pi_network_in")),
     netOut: withUnit(by.get("sensor.pi_network_out")),
     ip: by.get("sensor.pi_ip_address")?.state,
     bootedAt: by.get("sensor.pi_last_boot")?.state,
     powerOk: power ? power.state === "off" : undefined,
   };
+}
+
+export type ServiceCall = [domain: string, service: string, target: Record<string, unknown> | null, data: Record<string, unknown>];
+
+/**
+ * Picking a fan mode. A running boost is stopped first: otherwise its timer
+ * keeps running and puts the fan back to Auto when it ends, over your choice.
+ */
+export function fanModeCalls(mode: string, boosting: boolean): ServiceCall[] {
+  return [
+    ...(boosting ? [["script", "turn_off", { entity_id: "script.pi_fan_boost" }, {}] as ServiceCall] : []),
+    ["input_select", "select_option", { entity_id: "input_select.pi_fan_mode" }, { option: mode }],
+  ];
 }
 
 export interface Update {

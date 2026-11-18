@@ -88,6 +88,24 @@ test("server: the Pi's numbers from sensor.pi_*, power ok when the problem senso
   assert.equal(m.server([]).temp, undefined);
 });
 
+test("fan: the mode shown is input_select's, even while the boost script still runs (task #5)", () => {
+  // Boost 10 min, then Auto picked: the helper says Auto, the script is still in its delay
+  const s = m.server([...pi.filter((x) => x.entity_id !== "input_select.pi_fan_mode"),
+    e("input_select.pi_fan_mode", "Auto", { options: ["Auto", "Off", "Low", "Medium", "High", "Max"] }),
+    e("script.pi_fan_boost", "on")]);
+  assert.equal(s.fanMode, "Auto");
+  assert.equal(s.fanBoost, true);
+  assert.equal(m.server(pi).fanBoost, false);
+});
+
+test("fan: picking a mode during a boost stops the boost first, so its timer cannot override the choice", () => {
+  const stop = ["script", "turn_off", { entity_id: "script.pi_fan_boost" }, {}];
+  const pick = (o: string) => ["input_select", "select_option", { entity_id: "input_select.pi_fan_mode" }, { option: o }];
+  assert.deepEqual(m.fanModeCalls("Auto", true), [stop, pick("Auto")]);
+  assert.deepEqual(m.fanModeCalls("Low", true), [stop, pick("Low")]);
+  assert.deepEqual(m.fanModeCalls("Medium", false), [pick("Medium")]);
+});
+
 test("updates: only the ones waiting", () => {
   assert.deepEqual(m.updates(pi), [{ id: "update.home_assistant_core_update", name: "Home Assistant Core", installed: "2026.11.1", latest: "2026.11.2" }]);
 });

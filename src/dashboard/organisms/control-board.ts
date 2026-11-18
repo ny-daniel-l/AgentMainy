@@ -34,9 +34,12 @@ export function fanControl(list: Entity[]): HTMLElement {
       empty("Set up the fan control from home-assistant/ (Raspberry Pi 5 with the official Active Cooler).", { icon: "fan" }));
   }
   const boost = list.find((e) => e.entity_id === "script.pi_fan_boost");
-  const boosting = boost?.state === "on";
+  const boosting = s.fanBoost;
   const level = s.fanLevel ?? 0;
-  const setMode = (m: string) => act("input_select", "select_option", { entity_id: "input_select.pi_fan_mode" }, { option: m }, `Fan: ${m}`);
+  const setMode = async (m: string) => {
+    const calls = model.fanModeCalls(m, boosting);
+    for (const [i, c] of calls.entries()) await act(...c, i === calls.length - 1 ? `Fan: ${m}` : undefined);
+  };
   return card({ title: "Fan", icon: "fan", wide: true, cls: "card-hero",
       aside: boosting ? pill("boost running", "info") : pill(s.fanRpm ? `${s.fanRpm} rpm` : "stopped", s.fanRpm ? "info" : "off") },
     h("div", { class: "fan-panel" },
@@ -50,7 +53,7 @@ export function fanControl(list: Entity[]): HTMLElement {
         ),
       ),
       h("div", { class: "fan-modes" },
-        segmented(s.fanModes.map((m) => ({ value: m, label: m })), boosting ? "Max" : s.fanMode, setMode, "Fan mode"),
+        segmented(s.fanModes.map((m) => ({ value: m, label: m })), s.fanMode, setMode, "Fan mode"),
         h("p", { class: "muted small fan-hint" }, boosting ? "Boost: full speed, then back to Auto by itself." : MODE_HINT[s.fanMode ?? ""] ?? ""),
         h("div", { class: "tile-row" },
           boost
@@ -63,7 +66,7 @@ export function fanControl(list: Entity[]): HTMLElement {
             : null,
           boosting
             ? actionTile({ icon: "stop", title: "Stop boost", hint: "Back to Auto now" },
-                () => { void act("script", "turn_off", { entity_id: "script.pi_fan_boost" }); void setMode("Auto"); })
+                () => setMode("Auto"))
             : null,
         ),
       ),
