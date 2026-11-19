@@ -6,19 +6,23 @@ import { button } from "../atoms/button";
 import { card } from "../molecules/card";
 import { empty } from "../molecules/empty";
 import { ago } from "../services/home-model";
-import { bearingText, ring, type Contact, type ContactKind } from "../services/radar-model";
+import type { Contact, ContactKind } from "../services/radar-model";
 import type { LogEntry } from "../services/radar";
 
 const GLYPH: Record<ContactKind, string> = { person: "◆", device: "■", unknown: "▲" };
-const IFF: Record<ContactKind, [string, "ok" | "off" | "warn"]> = { person: ["FRIEND", "ok"], device: ["KNOWN", "off"], unknown: ["UNKNOWN", "warn"] };
+function sub(c: Contact): string {
+  if (c.kind === "person") return c.since ? `came home ${ago(c.since)}` : "home";
+  const parts = [c.kind === "unknown" ? `first seen ${ago(c.since)}` : "online now", c.ip];
+  return parts.filter(Boolean).join(" · ");
+}
 
 function contactRow(c: Contact): HTMLElement {
-  return h("div", { class: `contact k-${c.kind}` },
+  return h("div", { class: `contact k-${c.kind}`, "data-id": c.id },
     h("span", { class: "c-glyph", "aria-hidden": "true" }, GLYPH[c.kind]),
     h("span", { class: "c-text" },
       h("span", { class: "c-name" }, c.label),
-      h("span", { class: "c-sub" }, `BRG ${bearingText(c.bearing)} · RING ${ring(c.range)}${c.kind === "person" && c.since ? ` · home ${ago(c.since)}` : ""}`)),
-    pill(IFF[c.kind][0], IFF[c.kind][1]),
+      h("span", { class: "c-sub" }, sub(c))),
+    c.kind === "unknown" ? pill("new", "warn") : h("span"),
   );
 }
 
@@ -31,7 +35,7 @@ export function contactsCard(list: Contact[]): HTMLElement {
     : null;
   return card({ title: "Contacts", icon: "radar", aside: h("span", { class: "count" }, String(list.length)) },
     list.length
-      ? h("div", { class: "contacts" }, section("Personnel", people), section("Unidentified", unknown), section("Devices", devices))
+      ? h("div", { class: "contacts" }, section("People", people), section("New devices", unknown), section("Devices", devices))
       : empty("No contacts. Nobody is home, or no data yet.", { icon: "radar" }),
   );
 }

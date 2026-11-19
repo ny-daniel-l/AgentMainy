@@ -15,6 +15,7 @@ export interface Contact {
   bearing: number;   // degrees, 0 = north, clockwise
   range: number;     // 0 (centre) .. 1 (edge)
   since?: string;    // when the person came home / the device was first seen
+  ip?: string;
 }
 
 export interface RadarEvent {
@@ -54,7 +55,8 @@ const DAY = 86_400_000;
  * Contacts for the scope: people who are home, and (optionally) devices that
  * are online. A device the router first saw less than a day ago is "unknown".
  */
-export function contacts(list: Entity[], opts: { devices: boolean; now?: number }): Contact[] {
+/** `names`: your own device names (services/aliases), keyed by Wi-Fi address or router name. */
+export function contacts(list: Entity[], opts: { devices: boolean; now?: number; names?: Record<string, string> }): Contact[] {
   const now = opts.now ?? Date.now();
   const people: Contact[] = list
     .filter((e) => e.entity_id.startsWith("person.") && e.state === "home")
@@ -67,7 +69,7 @@ export function contacts(list: Entity[], opts: { devices: boolean; now?: number 
       const id = `dev:${d.mac || d.name}`;
       const fresh = d.first_seen && now - Date.parse(d.first_seen) < DAY;
       const kind: ContactKind = fresh ? "unknown" : "device";
-      return { id, label: String(d.name), kind, since: d.first_seen, ...place(id, kind) };
+      return { id, label: opts.names?.[d.mac || d.name] || String(d.name), kind, since: d.first_seen, ip: String(d.ip ?? "").includes(".") ? String(d.ip) : undefined, ...place(id, kind) };
     });
   return [...people, ...devices];
 }
@@ -80,13 +82,4 @@ export function diff(before: Contact[], after: Contact[], t = Date.now()): Radar
   for (const c of after) if (!was.has(c.id)) events.push({ t, type: "acquired", kind: c.kind, label: c.label });
   for (const c of before) if (!now.has(c.id)) events.push({ t, type: "lost", kind: c.kind, label: c.label });
   return events;
-}
-
-/** "025°" style bearing and a 1-4 ring number for the readouts. */
-export function bearingText(b: number): string {
-  return `${String(Math.round(b) % 360).padStart(3, "0")}°`;
-}
-
-export function ring(range: number): number {
-  return Math.min(4, Math.max(1, Math.ceil(range * 4)));
 }

@@ -5,8 +5,34 @@ import { pill } from "../atoms/badge";
 import { button } from "../atoms/button";
 import { card } from "../molecules/card";
 import { empty } from "../molecules/empty";
+import { personChips } from "../molecules/person-chips";
+import { lastChange, presence } from "../services/presence";
 import { ha, haConfig } from "../services/home-assistant";
 import * as model from "../services/home-model";
+
+// Each person's state history (cached; refetched when someone comes or goes)
+let rows: Record<string, { t: number; s: string }[]> = {};
+let changedKey = "";
+let changedAt = 0;
+
+function refreshChanged(list: ReturnType<typeof ha.entities>) {
+  const people = list.filter((e) => e.entity_id.startsWith("person."));
+  const key = people.map((e) => `${e.entity_id}=${e.state}`).join(",");
+  if (key === changedKey && Date.now() - changedAt < 10 * 60_000) return;
+  changedKey = key;
+  changedAt = Date.now();
+  const ids = people.map((e) => e.entity_id);
+  if (!ids.length) return;
+  ha.stateHistory(ids, 24 * 7)
+    .then((h) => { rows = h; })
+    .catch(() => { changedKey = ""; });
+}
+
+/** Last change per person: the history plus the live state, which the recorder may not have written yet. */
+function lastChanges(list: ReturnType<typeof ha.entities>): Record<string, number | undefined> {
+  return Object.fromEntries(list.filter((e) => e.entity_id.startsWith("person.")).map((e) =>
+    [e.entity_id, lastChange([...(rows[e.entity_id] ?? []), { t: Date.parse(e.last_changed ?? ""), s: e.state }])]));
+}
 
 export function homeSummary(goTo: (page: string) => void): HTMLElement {
   if (!haConfig()) {
@@ -21,14 +47,13 @@ export function homeSummary(goTo: (page: string) => void): HTMLElement {
       empty(ha.error || "Connecting to Home Assistant…", { icon: "home" }));
   }
   const list = ha.entities();
-  const people = model.peopleHome(list);
+  refreshChanged(list);
   const lock = model.locks(list)[0];
   const net = model.internet(list);
   return card(
-    { title: "Home", icon: "home", aside: button("Radar", () => goTo("radar"), { icon: "radar" }) },
+    { title: "Home", icon: "home", aside: button("Open", () => goTo("house"), { icon: "home" }) },
+    personChips(presence(list, lastChanges(list))),
     h("div", { class: "summary-lines" },
-      h("div", null, h("span", { class: "muted" }, "Home "),
-        people.length ? h("b", null, people.map(model.nameOf).join(", ")) : h("span", null, "nobody")),
       lock ? h("div", null, h("span", { class: "muted" }, `${model.nameOf(lock)} `), pill(lock.state, lock.state === "locked" ? "ok" : "warn")) : null,
       net.online !== undefined || net.download
         ? h("div", null, h("span", { class: "muted" }, "Internet "),

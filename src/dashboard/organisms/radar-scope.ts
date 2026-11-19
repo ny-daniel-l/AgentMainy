@@ -4,7 +4,8 @@
 // beam drags a fading trail. The page calls pingNow() on every scan. People are diamonds, devices small squares,
 // unknown devices blinking triangles.
 
-import { bearingText, type Contact } from "../services/radar-model";
+import type { Contact } from "../services/radar-model";
+import { ago } from "../services/home-model";
 import { RADAR_COLORS, settings } from "../services/settings";
 
 export interface ScopeOptions {
@@ -224,12 +225,13 @@ export class RadarScope {
   /**
    * Names beside the blips without overlapping: people first, then unknown,
    * then devices. Each label tries right, left, above, below; a device label
-   * with no free spot is left out (it is still in the contact list).
+   * (not a person or a new device) with no free spot is left out (it is still in the contact list).
    */
   private drawLabels(labels: Label[], reserved: Box[]) {
     const { ctx } = this;
     const { w: W, h: H } = this.size;
-    const taken: Box[] = [...reserved];
+    // every dot counts as taken, so no name is written over another contact
+    const taken: Box[] = [...reserved, ...labels.map(({ x, y }) => ({ x: x - 7, y: y - 7, w: 14, h: 14 }))];
     // inside the canvas and clear of every label (and bearing number) already placed
     const free = (x: number, y: number, w: number, h: number) =>
       x >= 2 && y >= 2 && x + w <= W - 2 && y + h <= H - 2 &&
@@ -241,20 +243,22 @@ export class RadarScope {
       const text = person ? k.label.toUpperCase() : k.kind === "unknown" ? `?? ${k.label}` : k.label;
       const font = `${person ? "600 11.5px" : "10.5px"} ${MONO}`;
       ctx.font = font;
-      const w = ctx.measureText(text).width;
-      const h = person ? 25 : 13;
+      const subText = person && k.since ? `HOME ${ago(k.since).replace(" ago", "").toUpperCase()}` : "";
+      let w = ctx.measureText(text).width;
+      if (subText) { ctx.font = `9.5px ${MONO}`; w = Math.max(w, ctx.measureText(subText).width); ctx.font = font; }
+      const h = subText ? 25 : 13;
       const spots: [number, number][] = [[x + 12, y - 7], [x - 12 - w, y - 7], [x - w / 2, y - 14 - h], [x - w / 2, y + 12]];
       const spot = spots.find(([sx, sy]) => free(sx, sy, w, h))
-        ?? (person ? [Math.min(Math.max(2, spots[0][0]), W - w - 2), spots[0][1]] as [number, number] : undefined);
+        ?? (k.kind !== "device" ? [Math.min(Math.max(2, spots[0][0]), W - w - 2), spots[0][1]] as [number, number] : undefined);
       if (!spot) continue;
       taken.push({ x: spot[0], y: spot[1], w, h });
       ctx.font = font;
-      ctx.fillStyle = rgba(col, Math.max(k.kind === "device" ? 0.3 : 0.6, lit));
+      ctx.fillStyle = rgba(col, Math.max(k.kind === "device" ? 0.62 : 0.75, lit));
       ctx.fillText(text, spot[0], spot[1]);
-      if (person) {
+      if (subText) {
         ctx.font = `9.5px ${MONO}`;
-        ctx.fillStyle = rgba(col, Math.max(0.4, lit * 0.7));
-        ctx.fillText(`BRG ${bearingText(k.bearing)}`, spot[0], spot[1] + 13);
+        ctx.fillStyle = rgba(col, Math.max(0.55, lit * 0.8));
+        ctx.fillText(subText, spot[0], spot[1] + 13);
       }
     }
   }

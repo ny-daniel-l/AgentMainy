@@ -44,9 +44,26 @@ test("diff reports contacts acquired and lost between two scans", () => {
   assert.deepEqual(r.diff(after, after), []);
 });
 
-test("readouts", () => {
-  assert.equal(r.bearingText(5), "005°");
-  assert.equal(r.bearingText(359.6), "000°");
-  assert.equal(r.ring(0.1), 1);
-  assert.equal(r.ring(0.93), 4);
+test("devices carry their IP for the contact list", () => {
+  const list = [{ entity_id: "sensor.router_devices", state: "2", attributes: { devices: [
+    { name: "TV", mac: "aa", active: true, ip: "10.0.0.5", first_seen: "2026-01-01T00:00:00Z" },
+    { name: "Box", mac: "bb", active: true, first_seen: "2026-01-01T00:00:00Z" },
+  ] } }] as any;
+  const [tv, box] = r.contacts(list, { devices: true, now: Date.parse("2026-02-01T00:00:00Z") });
+  assert.equal(tv.ip, "10.0.0.5");
+  assert.equal(box.ip, undefined);
+});
+
+test("only an IPv4 address is shown", () => {
+  const list = [{ entity_id: "sensor.router_devices", state: "1", attributes: { devices: [
+    { name: "Echo", mac: "cc", active: true, ip: "2a02:1210::1", first_seen: "2026-01-01T00:00:00Z" },
+  ] } }] as any;
+  assert.equal(r.contacts(list, { devices: true })[0].ip, undefined);
+});
+
+test("your own device names replace the router's", () => {
+  const list = [{ entity_id: "sensor.router_devices", state: "1", attributes: { devices: [
+    { name: "Miele-001D63", mac: "dd", active: true, first_seen: "2026-01-01T00:00:00Z" },
+  ] } }] as any;
+  assert.equal(r.contacts(list, { devices: true, names: { dd: "Washing machine" } })[0].label, "Washing machine");
 });

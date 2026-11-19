@@ -8,6 +8,7 @@ import { emit } from "@tauri-apps/api/event";
 import { ha, haConfig } from "../dashboard/services/home-assistant";
 import * as model from "../dashboard/services/home-model";
 import { contacts } from "../dashboard/services/radar-model";
+import { aliases } from "../dashboard/services/aliases";
 import { RadarScope, scopeOptions } from "../dashboard/organisms/radar-scope";
 import { formatTemp, settings } from "../dashboard/services/settings";
 
@@ -71,7 +72,7 @@ export function renderHome() {
     const lock = model.locks(list)[0];
     const s = model.server(list);
     const net = model.internet(list);
-    scope?.setContacts(contacts(list, { devices: settings().radarDevices }));
+    scope?.setContacts(contacts(list, { devices: settings().radarDevices, names: aliases() }));
     html =
       `<div><span class="k">Home</span><span class="v">${people.length ? esc(people.join(", ")) : "nobody"}</span></div>` +
       (lock ? `<div><span class="k">Door</span>${pill(lock.state, lock.state === "locked" ? "ok" : "warn")}</div>` : "") +

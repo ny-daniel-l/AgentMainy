@@ -28,12 +28,12 @@ function radarCard(): HTMLElement {
   const c = radarState().contacts;
   const n = (k: string) => c.filter((x) => x.kind === k).length;
   const people = c.filter((x) => x.kind === "person").map((x) => x.label);
-  return card({ title: "Radar", icon: "radar", aside: button("Open", () => goTo("radar"), { icon: "radar" }) },
+  return card({ title: "Radar", icon: "radar", cls: "card-radar", aside: button("Open", () => goTo("radar"), { icon: "radar" }) },
     // data-keep: the live canvas is put in once and refreshes never touch it
     h("div", { class: "mini-scope", "data-keep": true, style: `--radar:${RADAR_COLORS[settings().radarColor]}`,
       role: "button", tabindex: 0, title: "Open the radar", onclick: () => goTo("radar") }),
     h("div", { class: "mini-legend" }, people.length ? `◆ ${people.join(", ")}` : "◆ nobody home"),
-    h("div", { class: "mini-legend dim-legend" }, `■ ${n("device")} devices${n("unknown") ? `   ▲ ${n("unknown")} unknown` : ""}`),
+    h("div", { class: "mini-legend dim-legend" }, `■ ${n("device")} devices${n("unknown") ? `   ▲ ${n("unknown")} new` : ""}`),
   );
 }
 

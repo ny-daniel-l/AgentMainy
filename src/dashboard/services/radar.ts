@@ -1,8 +1,10 @@
 // The radar's scan loop. Every `radarInterval` seconds it takes a snapshot of
 // who and what is home, logs what appeared or disappeared since the last scan,
-// and (active ping) asks the router sensor for a fresh list for the next scan.
+// and (active ping, only while a radar is on screen) asks the router sensor for a
+// fresh list for the next scan.
 // It keeps running while you look at other pages, so the log stays complete.
 
+import { aliases } from "./aliases";
 import { ha } from "./home-assistant";
 import { routerSensorId } from "./home-model";
 import { contacts, diff, type Contact, type ContactKind } from "./radar-model";
@@ -40,18 +42,24 @@ export function radarState() {
 export function scan(): void {
   const list = ha.entities();
   if (ha.status !== "online" || !list.length) return;
-  const next = contacts(list, { devices: settings().radarDevices });
+  const next = contacts(list, { devices: settings().radarDevices, names: aliases() });
   const events = scans === 0
     ? [{ t: Date.now(), type: "info" as const, label: `Radar online · ${next.length} contact${next.length === 1 ? "" : "s"}` }]
     : diff(current, next);
   log = [...events.reverse(), ...log].slice(0, 100);
   current = next;
   scans++;
-  if (settings().radarActivePing) {
+  if (settings().radarActivePing && radarWatched()) {
     const id = routerSensorId(list);
     if (id) ha.call("homeassistant", "update_entity", { entity_id: id }).catch(() => {});
   }
   changed();
+}
+
+/** Someone is looking at a radar (the Radar page or Overview's mini radar, window focused).
+ *  Each active ping is a router login, so they only happen then; background scans read the passive sensor. */
+function radarWatched(): boolean {
+  return document.hasFocus() && !!document.querySelector('.page.sel[data-page="radar"], .page.sel[data-page="overview"]');
 }
 
 function restartTimer() {
@@ -88,7 +96,7 @@ export function startRadar(): void {
     if (s.radarInterval !== last.radarInterval) restartTimer();
     if (s.radarDevices !== last.radarDevices && scans > 0) {
       // A different filter is not news: take the new view as the baseline.
-      current = contacts(ha.entities(), { devices: s.radarDevices });
+      current = contacts(ha.entities(), { devices: s.radarDevices, names: aliases() });
       changed();
     }
     last = s;

@@ -44,7 +44,8 @@ function renderSide() {
   const { contacts, log, scans } = radarState();
   const n = (k: string) => contacts.filter((c) => c.kind === k).length;
   scanEl.textContent = `SCAN ${String(scans).padStart(4, "0")}`;
-  countEl.textContent = `◆ ${n("person")}  ■ ${n("device")}  ▲ ${n("unknown")}`;
+  const p = n("person"), d = n("device"), u = n("unknown");
+  countEl.textContent = `${p} ${p === 1 ? "person" : "people"} · ${d} device${d === 1 ? "" : "s"}${u ? ` · ${u} new` : ""}`;
   mount(side, contactsCard(contacts), logCard(log, clearLog));
 }
 
@@ -72,10 +73,10 @@ export const radarPage: DashPage = {
         h("div", { class: "scope-bar" }, scanEl, nextEl, countEl, h("span", { class: "spacer" }), controls),
         h("div", { class: "scope-wrap" },
           canvas,
-          h("div", { class: "hud hud-tl" }, h("b", null, "PRESENCE RADAR"), h("span", null, "HOME · PPI")),
+          h("div", { class: "hud hud-tl" }, h("b", null, "PRESENCE RADAR"), h("span", null, "HOME")),
           clockEl,
-          h("div", { class: "hud hud-bl" }, "◆ person   ■ device   ▲ unknown"),
-          h("div", { class: "hud hud-br" }, "RANGE 4 RINGS"),
+          h("div", { class: "hud hud-bl" }, "◆ person   ■ device   ▲ new"),
+          h("div", { class: "hud hud-br", title: "The radar knows who is home, not where. Each contact keeps a fixed spot: people on the inner rings, devices on the outer ones." }, "NOT REAL LOCATIONS"),
         ),
       ),
       side,
