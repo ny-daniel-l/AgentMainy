@@ -67,7 +67,7 @@
         <button class="tab" data-tab="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>
             <span id="tab-settings">Settings</span></button>
         <button class="tab" data-tab="general"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
-        <span id="tab-general">General</span></button>
+        <span id="tab-general">Agents &amp; alerts</span></button>
         <button class="tab" data-tab="about"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r=".6" fill="currentColor"/></svg>
         <span id="tab-about">About</span></button>
         <div class="side-foot" id="side-status"></div>
@@ -156,13 +156,6 @@
           <div class="gcard" id="agents"></div>
         </div>
 
-        <div class="group">
-          <div class="ghead" id="t-app">About</div>
-          <div class="gcard">
-            <div class="row"><span id="t-version">Version</span><span class="dim" id="app-version">0.1.0</span></div>
-            <div class="row center"><button class="quit" id="quit-btn">Quit AgentMainy</button></div>
-          </div>
-        </div>
       </div>
 
       <!-- ================================ PET ================================ -->
@@ -286,7 +279,7 @@
         <div class="group">
           <div class="ghead" id="t-appearance">Appearance</div>
           <div class="gcard">
-            <div class="row"><span id="t-theme">Theme</span>
+            <div class="row"><span id="t-theme">Bubble theme</span>
               <span class="seg" id="theme" data-key="ap_theme" data-default="dark">
                 <button data-v="light" id="o-light">Light</button>
                 <button data-v="dark" id="o-dark">Dark</button>
@@ -455,9 +448,16 @@
         </div>
         <div class="group">
           <div class="gcard pad btns">
-            <button class="prominent pill" data-url="https://github.com/ny-daniel-l/AgentMainy"><span class="ui-ic"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg></span><span id="t-star">Star on GitHub</span></button>
+            <button class="btn star-btn" data-url="https://github.com/ny-daniel-l/AgentMainy"><span class="ui-ic"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg></span><span id="t-star">Star on GitHub</span></button>
           </div>
           <div class="cap gfoot" id="t-thanks">If AgentMainy helps your workflow, a star means a lot. Thank you!</div>
+        </div>
+        <div class="group">
+          <div class="ghead" id="t-app-version">App</div>
+          <div class="gcard">
+            <div class="row"><span id="t-version2">Version</span><span class="dim" id="app-version2">0.1.0</span></div>
+            <div class="row center"><button class="quit" id="quit-btn">Quit AgentMainy</button></div>
+          </div>
         </div>
         <div class="group">
           <div class="ghead" id="t-author">Built on</div>
@@ -465,11 +465,6 @@
             <div class="row link" data-url="https://github.com/ny-daniel-l/AgentMainy"><span class="alink">&lt;/&gt; AgentMainy by @ny-daniel-l</span><span class="dim">↗</span></div>
             <div class="row link" data-url="https://github.com/ntd4996/agentpet"><span class="alink">🐾 AgentPet by Nguyễn Thành Đạt (@ntd4996)</span><span class="dim">↗</span></div>
             <div class="row link" data-url="https://github.com/ZH-NICO/ultraclaude"><span class="alink">👥 UltraClaude by @ZH-NICO</span><span class="dim">↗</span></div>
-          </div>
-        </div>
-        <div class="group">
-          <div class="gcard">
-            <div class="row"><span id="t-version2">Version</span><span class="dim" id="app-version2">0.1.0</span></div>
           </div>
         </div>
       </div>

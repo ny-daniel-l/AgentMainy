@@ -1215,7 +1215,7 @@ function applyStatic() {
   document.documentElement.lang = getLang();
   const set = (id: string, key: string) => { const el = document.getElementById(id); if (el) el.textContent = t(key); };
   // tabs
-  set("tab-general", "General");
+  set("tab-general", "Agents & alerts");
   set("tab-pet", "Pet");
   set("tab-bubble", "Dock");
   set("tab-about", "About");
@@ -1239,6 +1239,7 @@ function applyStatic() {
   set("t-app", "About");
   set("t-version", "Version");
   set("quit-btn", "Quit AgentMainy");
+  set("t-app-version", "App");
   // pet
   set("t-pet-sub", "Pick the companion that floats on your desktop.");
   set("t-choose", "Choose pet");
@@ -1269,7 +1270,7 @@ function applyStatic() {
   set("am-celebrate", "Celebrate");
   // bubble
   set("t-appearance", "Appearance");
-  set("t-theme", "Theme");
+  set("t-theme", "Bubble theme");
   set("t-opacity", "Opacity");
   set("t-fontsize", "Text size");
   set("o-dark", "Dark");
