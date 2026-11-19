@@ -19,11 +19,30 @@ let visible = false;
 function connectionCard(error = ""): HTMLElement {
   const cfg = haConfig();
   if (cfg) {
+    // a new address keeps the token; the old address stays if the new one does not answer
+    const save = async (field: HTMLInputElement) => {
+      const url = normalizeUrl(field.value.trim());
+      if (!url) return toast("Enter at least one address.", "bad");
+      if (url === cfg.url) return;
+      try {
+        await ha.connect({ ...cfg, url });
+        saveHaConfig({ ...cfg, url });
+        toast("Address saved", "ok");
+        render();
+      } catch (e) {
+        ha.connect(cfg).catch(() => {});
+        toast(`${(e as Error).message} Kept the old address.`, "bad");
+      }
+    };
+    const addr = h("input", { class: "field mono", type: "text", value: cfg.url, spellcheck: "false", "aria-label": "Home Assistant address",
+      onkeydown: (e: Event) => { if ((e as KeyboardEvent).key === "Enter") void save(e.currentTarget as HTMLInputElement); } });
     return card({ title: "Home Assistant", icon: "home", wide: true, aside: pill(ha.status === "online" ? "connected" : ha.status, ha.status === "online" ? "ok" : ha.status === "error" ? "bad" : "info") },
-      settingRow("Address", ha.error || "Used by Radar, House, Clock, Network and Server.", h("span", { class: "mono" }, cfg.url)),
+      settingRow("Address", ha.error || "Used by Radar, House, Clock, Network and Server. Several: Tailscale first, then home, comma separated.", null),
+      h("div", { class: "launch" }, addr,
+        button("Save", (e) => { void save((e.currentTarget as HTMLElement).parentElement!.querySelector("input")!); }, { variant: "primary" })),
       h("div", { class: "row-actions" },
         button("Reconnect", () => { ha.connect(cfg).catch(() => {}); }),
-        button("Disconnect", () => { ha.disconnect(); saveHaConfig(null); render(); })),
+        confirmButton("Disconnect", "Click again: forget address and token", () => { ha.disconnect(); saveHaConfig(null); render(); }, { variant: "danger" })),
     );
   }
   const url = h("input", { class: "field", type: "text", placeholder: "http://homeassistant.local:8123", spellcheck: "false", "aria-label": "Home Assistant address" });
@@ -56,12 +75,12 @@ function connectionCard(error = ""): HTMLElement {
 
 function radarCard(): HTMLElement {
   const s = settings();
-  const volume = h("input", { class: "range", type: "range", min: 0, max: 1, step: 0.05, value: s.radarVolume, "aria-label": "Ping volume",
+  const volume = h("input", { class: "range", type: "range", min: 0, max: 1, step: 0.05, value: s.radarVolume, "aria-label": "Ping volume", disabled: !s.radarSound,
     onchange: (e: Event) => updateSettings({ radarVolume: Number((e.currentTarget as HTMLInputElement).value) }) });
   return card({ title: "Radar", icon: "radar" },
     settingRow("Ping every", "One sweep of the beam, one scan.",
       segmented([5, 10, 15, 30, 60].map((v) => ({ value: v, label: `${v} s` })), s.radarInterval, (v) => updateSettings({ radarInterval: v }), "Ping interval")),
-    settingRow("Colour", "",
+    settingRow("Color", "",
       h("div", { class: "swatches" }, ...(Object.keys(RADAR_COLORS) as RadarColor[]).map((c) => h("button", {
         type: "button", class: `swatch${c === s.radarColor ? " on" : ""}`, style: `--sw:${RADAR_COLORS[c]}`, title: c, "aria-label": c, "aria-pressed": String(c === s.radarColor),
         onclick: () => updateSettings({ radarColor: c }) })))),
@@ -69,7 +88,7 @@ function radarCard(): HTMLElement {
       segmented([{ value: 3, label: "Short" }, { value: 6, label: "Medium" }, { value: 10, label: "Long" }], s.radarAfterglow, (v) => updateSettings({ radarAfterglow: v }), "Afterglow")),
     settingRow("Labels", "Names next to the blips.", toggle(s.radarLabels, (on) => updateSettings({ radarLabels: on }), "Labels")),
     settingRow("Show devices", "Off: people only.", toggle(s.radarDevices, (on) => updateSettings({ radarDevices: on }), "Show devices")),
-    settingRow("Active ping", "Ask the router for a fresh device list on every ping (one router login per ping).", toggle(s.radarActivePing, (on) => updateSettings({ radarActivePing: on }), "Active ping")),
+    settingRow("Active ping", "While the Radar or Overview is open and the window is focused, ask the router for a fresh device list on every ping (one router login each). Otherwise the radar uses the router's own updates.", toggle(s.radarActivePing, (on) => updateSettings({ radarActivePing: on }), "Active ping")),
     settingRow("Sound", "A sonar ping on every scan while the Radar is open.", toggle(s.radarSound, (on) => updateSettings({ radarSound: on }), "Sound")),
     settingRow("Volume", "", volume),
     h("div", { class: "row-actions" }, confirmButton("Clear the event log", "Click again to clear", () => { clearLog(); toast("Radar log cleared", "info"); })),

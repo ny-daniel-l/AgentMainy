@@ -15,7 +15,7 @@ const render = onlyWhenChanged(() => {
   const gate = haGate("your timers and alarm clocks", goTo);
   if (gate) return mount(root, gate);
   const list = ha.entities();
-  mount(root, h("div", { class: "grid" }, timersCard(list), alarmsCard(list)));
+  mount(root, h("div", { class: "grid grid-2" }, timersCard(list, () => render(true)), alarmsCard(list)));
 }, () => {
   const list = ha.entities();
   return JSON.stringify([ha.status, model.timers(list).map((t) => [t.state, t.attributes.finishes_at, t.attributes.remaining]), model.alarms(list)]);

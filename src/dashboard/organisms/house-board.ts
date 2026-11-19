@@ -13,11 +13,13 @@ import type { Entity } from "../services/home-model";
 
 const LOCK_TONE: Record<string, Tone> = { locked: "ok", unlocked: "warn", open: "warn", jammed: "bad", locking: "info", unlocking: "info", opening: "info" };
 
-function lockRow(list: Entity[], l: Entity): HTMLElement {
+const UNKNOWN = ["unknown", "unavailable"];
+
+function lockRow(list: Entity[], l: Entity, only: boolean): HTMLElement {
   const d = model.lockDetails(list, l.entity_id);
   return row({
     lead: icon(l.state === "locked" ? "lock" : "unlock"),
-    title: model.nameOf(l),
+    title: only ? "Lock" : model.nameOf(l),
     sub: [d.lastAction && `last: ${d.lastAction}`, d.battery && `battery ${d.battery}`, model.ago(l.last_changed)].filter(Boolean).join(" · "),
     trail: h("span", { class: "trail-stack" },
       pill(l.state, LOCK_TONE[l.state] ?? "off"),
@@ -31,17 +33,29 @@ function lockRow(list: Entity[], l: Entity): HTMLElement {
 export function doorCard(list: Entity[]): HTMLElement {
   const locks = model.locks(list);
   const doors = model.doors(list);
-  const unlocked = locks.some((l) => l.state !== "locked");
+  // "secure" only when every lock is locked AND every door sensor says closed
+  const jammed = locks.some((l) => l.state === "jammed");
+  const lockUnknown = locks.some((l) => UNKNOWN.includes(l.state));
+  const moving = locks.some((l) => ["locking", "unlocking", "opening"].includes(l.state));
+  const unlocked = locks.some((l) => ["unlocked", "open"].includes(l.state));
   const open = doors.some((d) => d.state === "on");
-  const status = !locks.length && !doors.length ? null : open ? pill("door open", "warn") : unlocked ? pill("unlocked", "warn") : pill("secure", "ok");
+  const doorUnknown = doors.some((d) => UNKNOWN.includes(d.state));
+  const status = !locks.length && !doors.length ? null
+    : jammed ? pill("lock jammed", "bad")
+    : open ? pill("door open", "warn")
+    : lockUnknown ? pill("lock state unknown", "warn")
+    : moving ? pill(locks.find((l) => l.state.endsWith("ing"))!.state + "…", "info")
+    : unlocked ? pill("unlocked", "warn")
+    : doorUnknown ? pill(locks.length ? "locked · door state unknown" : "door state unknown", "warn")
+    : pill(doors.length ? "secure" : "locked", "ok");
   return card({ title: "Door & security", icon: "door", aside: status },
     locks.length || doors.length
       ? rows([
-          ...locks.map((l) => lockRow(list, l)),
+          ...locks.map((l) => lockRow(list, l, locks.length === 1)),
           ...doors.map((d) => row({
             lead: icon("door"),
-            title: model.nameOf(d),
-            sub: model.ago(d.last_changed),
+            title: doors.length === 1 ? "Door sensor" : model.nameOf(d),
+            sub: UNKNOWN.includes(d.state) ? `no report from the sensor · ${model.ago(d.last_changed)}` : model.ago(d.last_changed),
             trail: pill(d.state === "on" ? "open" : d.state === "off" ? "closed" : d.state, d.state === "on" ? "warn" : d.state === "off" ? "ok" : "off"),
           })),
         ])
@@ -57,7 +71,7 @@ export function appliancesCard(list: Entity[]): HTMLElement {
       ? rows(all.map((a) => row({
           lead: icon("cook"),
           title: a.name,
-          sub: a.running ? [a.program, a.ends && `ends ${a.ends}`].filter(Boolean).join(" · ") || "running" : "idle",
+          sub: a.running ? [a.program, a.ends && `ends ${a.ends}`].filter(Boolean).join(" · ") || undefined : undefined,
           trail: pill(a.running ? "running" : "idle", a.running ? "ok" : "off"),
         })), 12)
       : empty("Appliances with a \"running\" sensor show up here (see home-assistant/ for V-ZUG).", { icon: "cook" }),

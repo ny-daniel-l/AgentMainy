@@ -39,7 +39,7 @@ const HEADINGS: Record<string, [string, string]> = {
   care: ["Care", "Your pet eats the tokens your agents burn"],
   bubble: ["Dock & bubble", "How the pet, its dock and its speech bubble look"],
   history: ["History", "Finished sessions and token usage"],
-  general: ["General", "Connect agents, notifications, startup and language"],
+  general: ["Agents & alerts", "Connect agents, notifications, sounds, startup and language"],
   about: ["About", "AgentMainy and the projects it is built on"],
 };
 
@@ -58,12 +58,27 @@ function renderStatus() {
   mount(document.getElementById("top-pills")!,
     c.working ? pill(`${c.working} working`, "ok") : null,
     c.waiting ? pill(`${c.waiting} need you`, "warn") : null,
-    home !== null ? pill(`${home} home`, "info") : null,
+    // Overview has its own count; never a bare "0 home"
+    home && current !== "overview" ? pill(`${home} home`, "info") : null,
   );
+  const agents = c.open ? `${c.open} agent${c.open === 1 ? "" : "s"} open` : "no agents";
+  const link = `home ${ha.status === "online" ? "live" : ha.status}`;
+  // title: the narrow sidebar shows only the dots
   mount(document.getElementById("side-status")!,
-    h("div", null, pill(c.open ? `${c.open} agent${c.open === 1 ? "" : "s"} open` : "no agents", c.working ? "ok" : "off")),
-    haConfig() ? h("div", null, pill(`home ${ha.status === "online" ? "live" : ha.status}`, ha.status === "online" ? "ok" : ha.status === "error" ? "bad" : "off")) : null,
+    h("div", { title: agents }, pill(agents, c.working ? "ok" : "off")),
+    haConfig() ? h("div", { title: link }, pill(link, ha.status === "online" ? "ok" : ha.status === "error" ? "bad" : "off")) : null,
   );
+}
+
+/** The narrow, icon-only sidebar: every tab keeps its name for screen readers, and as a tooltip. */
+const narrow = window.matchMedia("(max-width: 980px)");
+function nameTabs() {
+  for (const tab of document.querySelectorAll<HTMLButtonElement>(".tabbar .tab")) {
+    const name = tab.querySelector("span")?.textContent?.trim() ?? "";
+    if (tab.getAttribute("aria-label") !== name) tab.setAttribute("aria-label", name);
+    const title = narrow.matches ? name : "";
+    if (tab.title !== title) tab.title = title;
+  }
 }
 
 /** Accent colour and reduced motion from the Settings page. */
@@ -83,6 +98,7 @@ document.querySelector(".tabbar")!.addEventListener("click", (e) => {
   setHeading(current);
   document.body.dataset.page = current;
   PAGES.find((p) => p.id === current)?.show?.();
+  renderStatus();
 });
 
 applyLook(settings());
@@ -98,6 +114,10 @@ document.body.dataset.page = current;
 onSessions(renderStatus);
 ha.onChange(renderStatus);
 renderStatus();
+nameTabs();
+narrow.addEventListener("change", nameTabs);
+// the language can change at runtime (General page)
+new MutationObserver(nameTabs).observe(document.querySelector(".tabbar")!, { subtree: true, childList: true, characterData: true });
 // The pet's panel can ask for a page: an open dashboard hears the event, a
 // freshly opened one finds the page in am_goto. Otherwise: the start page
 // (first-run onboarding opens Pet itself).
