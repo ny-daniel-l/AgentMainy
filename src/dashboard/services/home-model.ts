@@ -275,14 +275,23 @@ export function alarmLabel(name: string, entityId: string): string {
   return name.replace(/^wecker(?=$|\s)/i, "Alarm");
 }
 
-/** Time-only input_datetimes, each paired with an input_boolean whose name starts with its name ("Wecker" + "Wecker aktiv"). */
+const SWITCH_SUFFIXES = ["_aktiv", "_on", "_enabled", "_active", "_armed", ""];
+const objectId = (e: Entity) => e.entity_id.slice(e.entity_id.indexOf(".") + 1);
+
+/**
+ * Time-only input_datetimes, each paired with its input_boolean: by entity id
+ * first (input_datetime.wecker + input_boolean.wecker_aktiv, so renaming one
+ * of them in HA keeps the pair), else the one whose name starts with its name.
+ */
 export function alarms(list: Entity[]): Alarm[] {
   const switches = list.filter((e) => domainOf(e) === "input_boolean");
+  const byId = new Map(switches.map((b) => [objectId(b), b]));
   return list
     .filter((e) => domainOf(e) === "input_datetime" && e.attributes.has_time && !e.attributes.has_date)
     .map((e) => {
       const name = nameOf(e);
-      const sw = switches.find((b) => nameOf(b).toLowerCase().startsWith(name.toLowerCase()));
+      const sw = SWITCH_SUFFIXES.map((s) => byId.get(objectId(e) + s)).find(Boolean)
+        ?? switches.find((b) => nameOf(b).toLowerCase().startsWith(name.toLowerCase()));
       return { id: e.entity_id, name: alarmLabel(name, e.entity_id), time: String(e.state).slice(0, 5), switchId: sw?.entity_id, armed: sw ? sw.state === "on" : undefined };
     });
 }

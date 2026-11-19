@@ -18,7 +18,7 @@ const render = onlyWhenChanged(() => {
   mount(root, h("div", { class: "grid grid-2" }, timersCard(list, () => render(true)), alarmsCard(list)));
 }, () => {
   const list = ha.entities();
-  return JSON.stringify([ha.status, model.timers(list).map((t) => [t.state, t.attributes.finishes_at, t.attributes.remaining]), model.alarms(list)]);
+  return JSON.stringify([ha.status, model.timers(list).map((t) => [t.state, t.attributes.finishes_at, t.attributes.remaining, t.attributes.friendly_name]), model.alarms(list)]);
 });
 
 /** Live countdown: only the running timers' numbers change. */

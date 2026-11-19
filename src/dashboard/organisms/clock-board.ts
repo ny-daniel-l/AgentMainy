@@ -77,7 +77,7 @@ export function alarmsCard(list: Entity[]): HTMLElement {
               const v = (e.currentTarget as HTMLInputElement).value;
               if (v) void act("input_datetime", "set_datetime", { entity_id: a.id }, { time: `${v}:00` }, `${a.name}: ${v}`);
             } });
-          return h("div", { class: `alarm${a.armed === false ? "" : " armed"}` },
+          return h("div", { class: `alarm${a.armed === false ? "" : " alarm-on"}` },
             time,
             h("div", { class: "alarm-text" }, h("b", null, a.name), a.switchId ? null : h("span", { class: "muted" }, "always on")),
             a.switchId ? toggle(!!a.armed, (on) => act("input_boolean", on ? "turn_on" : "turn_off", { entity_id: a.switchId }, {}, `${a.name} ${on ? "armed" : "off"}`), `${a.name} on/off`) : null,

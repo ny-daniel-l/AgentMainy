@@ -448,11 +448,11 @@ body.dashboard.reduce-motion * { animation: none !important; transition: none !i
 .dashboard .mini-field { width: 70px; flex: 0 0 auto; padding: 6px 9px; }
 .dashboard .alarm-list { display: flex; flex-direction: column; gap: 10px; }
 .dashboard .alarm { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 16px; padding: 12px 16px; border-radius: 14px; background: rgba(0, 0, 0, 0.22); border: 1px solid var(--am-line); }
-.dashboard .alarm.armed { border-color: rgba(124, 108, 255, 0.45); }
+.dashboard .alarm.alarm-on { border-color: rgba(124, 108, 255, 0.45); }
 .dashboard .alarm-time { font: inherit; font-size: 32px; font-weight: 300; font-variant-numeric: tabular-nums; color: var(--am-txt); color-scheme: dark; background: transparent; border: 1px solid transparent; border-radius: 10px; padding: 0 6px; cursor: pointer; }
 .dashboard .alarm-time:hover { border-color: var(--am-line); background: rgba(255, 255, 255, 0.04); }
 .dashboard .alarm-time:focus-visible { outline: 2px solid var(--am-accent-2); outline-offset: 2px; }
-.dashboard .alarm:not(.armed) .alarm-time { color: var(--am-sec); }
+.dashboard .alarm:not(.alarm-on) .alarm-time { color: var(--am-sec); }
 .dashboard .alarm-text { display: flex; flex-direction: column; font-size: 13px; }
 .dashboard .time-field { flex: 0 0 auto; width: 120px; color-scheme: dark; }
 

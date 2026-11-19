@@ -212,3 +212,17 @@ test("alarm: default names read as 'Alarm', your own names stay", () => {
   assert.equal(m.alarmLabel("input_datetime.x", "input_datetime.x"), "Alarm");
   assert.equal(m.alarmLabel("Morning run", "input_datetime.run"), "Morning run");
 });
+
+test("alarm pairs with its switch by entity id, so renaming only one of them keeps the pair (#25)", () => {
+  const time = (id: string, name: string) => e(`input_datetime.${id}`, "06:45:00", { friendly_name: name, has_time: true, has_date: false });
+  const sw = (id: string, name: string, state = "on") => e(`input_boolean.${id}`, state, { friendly_name: name });
+  // only the time helper renamed: "Alarm" + "Wecker aktiv"
+  assert.deepEqual(m.alarms([time("wecker", "Alarm"), sw("wecker_aktiv", "Wecker aktiv", "off")]).map((a) => [a.name, a.switchId, a.armed]),
+    [["Alarm", "input_boolean.wecker_aktiv", false]]);
+  // other suffixes, and no friendly names at all
+  assert.equal(m.alarms([time("run", "Run"), sw("run_enabled", "x")])[0].switchId, "input_boolean.run_enabled");
+  assert.equal(m.alarms([e("input_datetime.nap", "13:00:00", { has_time: true, has_date: false }), e("input_boolean.nap_on", "on", {})])[0].switchId, "input_boolean.nap_on");
+  // no id match: the name prefix still pairs; nothing matching: always on
+  assert.equal(m.alarms([time("a1", "Gym"), sw("other", "Gym on")])[0].switchId, "input_boolean.other");
+  assert.equal(m.alarms([time("a1", "Gym"), sw("other", "Lights")])[0].armed, undefined);
+});

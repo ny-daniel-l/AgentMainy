@@ -91,7 +91,8 @@ function patchNode(have: Node, want: Node) {
     return;
   }
   const a = have as WithHandlers, b = want as WithHandlers;
-  // an armed confirm button keeps its "click again" state until it times out
+  // an armed confirm button keeps its "click again" state until it times out.
+  // "armed" is reserved for that: a node with it is never patched (never use it as a data state class)
   if (a.classList.contains("armed")) return;
   for (const { name, value } of [...b.attributes]) {
     if (a.getAttribute(name) !== value) a.setAttribute(name, value);
