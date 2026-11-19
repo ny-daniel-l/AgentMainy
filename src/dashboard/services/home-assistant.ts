@@ -36,8 +36,20 @@ export function normalizeUrl(input: string): string {
   }).join(", ");
 }
 
+/** Not on the home network: a Tailscale address (100.64.0.0/10, *.ts.net) or any
+ *  public one. Home = private ranges, localhost, *.local and bare host names. */
+export function isAway(url: string): boolean {
+  let host: string;
+  try { host = new URL(url).hostname.replace(/^\[|\]$/g, ""); } catch { return false; }
+  if (/^(10\.|192\.168\.|127\.|172\.(1[6-9]|2\d|3[01])\.)/.test(host) || host === "localhost" || host === "::1") return false;
+  if (host.endsWith(".local") || (!host.includes(".") && !host.includes(":"))) return false;
+  return true;
+}
+
 class HomeAssistant {
   status: HaStatus = "off";
+  /** The address that answered (one of the configured ones), while connected. */
+  address = "";
   error = "";
   private states = new Map<string, Entity>();
   private ws?: WebSocket;
@@ -91,6 +103,7 @@ class HomeAssistant {
           ws.send(JSON.stringify({ type: "auth", access_token: cfg.token }));
         } else if (msg.type === "auth_ok") {
           window.clearTimeout(timeout);
+          this.address = url;
           this.setStatus("online");
           void this.send({ type: "get_states" }).then((r) => {
             this.states = new Map((r.result as Entity[]).map((e) => [e.entity_id, e]));
@@ -136,6 +149,7 @@ class HomeAssistant {
     this.ws = undefined;
     ws?.close();
     this.states.clear();
+    this.address = "";
     this.setStatus("off");
   }
 
@@ -146,6 +160,19 @@ class HomeAssistant {
   }
 
   /** Numeric history of `entityId` over the last `hours`, oldest first. */
+  /** Every recorded state of some entities, oldest first: { id: [{ t, s }] }. */
+  async stateHistory(entityIds: string[], hours: number): Promise<Record<string, { t: number; s: string }[]>> {
+    const r = await this.send({
+      type: "history/history_during_period",
+      start_time: new Date(Date.now() - hours * 3_600_000).toISOString(),
+      entity_ids: entityIds,
+      minimal_response: true,
+      no_attributes: true,
+    });
+    return Object.fromEntries(entityIds.map((id) => [id, ((r.result?.[id] ?? []) as any[])
+      .map((x) => ({ t: (x.lu ?? Date.parse(x.last_updated ?? x.last_changed) / 1000) * 1000, s: String(x.s ?? x.state) }))]));
+  }
+
   async history(entityId: string, hours = 24): Promise<{ t: number; v: number }[]> {
     const r = await this.send({
       type: "history/history_during_period",

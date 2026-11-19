@@ -1,12 +1,20 @@
 // The Pi control page: everything you can DO to the Raspberry Pi, in big
 // buttons. Fan (modes, boost), power (restart / reboot / shut down) and
 // maintenance (backup, updates). Status lives on the Server page.
+import { invoke } from "@tauri-apps/api/core";
 import { h } from "../atoms/h";
 import { pill } from "../atoms/badge";
+import { button, confirmButton } from "../atoms/button";
+import { icon } from "../atoms/icon";
 import { segmented } from "../atoms/segmented";
 import { card } from "../molecules/card";
 import { actionTile } from "../molecules/action-tile";
 import { empty } from "../molecules/empty";
+import { levelBars } from "../molecules/fan-bars";
+import { meter } from "../molecules/meter";
+import { row } from "../molecules/row";
+import { toast } from "../molecules/toast";
+import { ha, isAway } from "../services/home-assistant";
 import { act } from "./ha-ui";
 import * as model from "../services/home-model";
 import type { Entity } from "../services/home-model";
@@ -21,11 +29,6 @@ const MODE_HINT: Record<string, string> = {
   Max: "Full speed, loud.",
 };
 
-/** Five bars, lit up to the fan's current level. */
-function levelBars(level: number): HTMLElement {
-  return h("div", { class: "fan-bars", role: "img", "aria-label": `Fan level ${level} of 4` },
-    ...[0, 1, 2, 3, 4].map((i) => h("span", { class: `fan-bar${i <= level && level > 0 ? " on" : ""}${i === 0 ? " zero" : ""}` })));
-}
 
 export function fanControl(list: Entity[]): HTMLElement {
   const s = model.server(list);
@@ -41,7 +44,7 @@ export function fanControl(list: Entity[]): HTMLElement {
     for (const [i, c] of calls.entries()) await act(...c, i === calls.length - 1 ? `Fan: ${m}` : undefined);
   };
   return card({ title: "Fan", icon: "fan", wide: true, cls: "card-hero",
-      aside: boosting ? pill("boost running", "info") : pill(s.fanRpm ? `${s.fanRpm} rpm` : "stopped", s.fanRpm ? "info" : "off") },
+      aside: boosting ? pill("boost running", "info") : pill(s.fanRpm ? `${s.fanRpm} rpm` : s.fanMode === "Auto" ? "idle (Auto, starts at 50 °C)" : s.fanMode === "Off" ? "off" : "stopped", s.fanRpm ? "info" : "off") },
     h("div", { class: "fan-panel" },
       h("div", { class: "fan-readout" },
         h("div", { class: `fan-spin${s.fanRpm ? " spinning" : ""}`, style: `--spin:${Math.max(0.25, 2.2 - level * 0.45)}s`, "aria-hidden": "true",
@@ -75,29 +78,77 @@ export function fanControl(list: Entity[]): HTMLElement {
 }
 
 export function powerControl(): HTMLElement {
-  return card({ title: "Power", icon: "plug" },
-    h("div", { class: "tile-grid" },
-      actionTile({ icon: "play", title: "Restart Home Assistant", hint: "About 1 minute, the Pi stays on", confirm: "Click again to restart" },
+  // away (over Tailscale) nobody can replug the Pi after a shutdown: hold 3 s instead of click twice
+  const away = isAway(ha.address);
+  const shutdown = () => act("hassio", "host_shutdown", null, {}, "The Pi is shutting down. Unplug and replug it to start it again.");
+  return card({ title: "Power", icon: "plug", aside: away ? pill("away from home", "warn") : undefined },
+    h("div", { class: "tile-grid power-grid" },
+      actionTile({ icon: "restart", title: "Restart Home Assistant", hint: "About 1 minute, the Pi stays on", confirm: "Click again to restart" },
         () => act("homeassistant", "restart", null, {}, "Home Assistant is restarting (about 1 min)")),
-      actionTile({ icon: "play", title: "Reboot the Pi", hint: "About 2 minutes offline", confirm: "Click again: reboot now", danger: true },
+      actionTile({ icon: "power", title: "Reboot the Pi", hint: "About 2 minutes offline", confirm: "Click again: reboot now", danger: true },
         () => act("hassio", "host_reboot", null, {}, "The Pi is rebooting (about 2 min)")),
-      actionTile({ icon: "stop", title: "Shut down the Pi", hint: "Unplug and replug it to start again", confirm: "Click again: power off", danger: true },
-        () => act("hassio", "host_shutdown", null, {}, "The Pi is shutting down. Unplug and replug it to start it again.")),
+      away
+        ? actionTile({ icon: "stop", title: "Shut down the Pi", hint: "You're away: it stays off until someone at home replugs it. Hold 3 s.", hold: "Keep holding… powering off", danger: true }, shutdown)
+        : actionTile({ icon: "stop", title: "Shut down the Pi", hint: "Unplug and replug it to start again", confirm: "Click again: power off", danger: true }, shutdown),
     ),
   );
 }
 
-export function maintenanceControl(list: Entity[]): HTMLElement {
-  const ups = model.updates(list);
+// installs started or seen, by update id; kept while the app runs, so "Done" survives an HA restart
+const started = new Map<string, model.Started>();
+
+/** True while an update installs (the page keeps the card up through an HA restart then). */
+export function installing(list: Entity[]): boolean {
+  return model.updateRows(list, started).some((u) => u.phase === "installing");
+}
+
+function updateRow(u: model.UpdateRow, restarting: boolean, install: (u: model.UpdateRow) => void): HTMLElement {
+  const notes = u.releaseUrl
+    ? button("Notes", () => { void invoke("open_url", { url: u.releaseUrl }); }, { icon: "external", title: "Release notes" })
+    : null;
+  const trail = u.phase === "waiting"
+    ? confirmButton("Install", "Click again", () => install(u), { variant: "primary" })
+    : u.phase === "done" ? pill("done", "ok") : pill(restarting ? "restarting" : "installing", "info");
+  const caption = restarting
+    ? "Home Assistant is restarting to finish this. Back in about a minute."
+    : u.percent !== undefined ? `Installing… ${u.percent} %` : "Installing… this can take a few minutes. You can leave this page.";
+  return h("div", { class: `upd upd-${u.phase}${u.failed ? " upd-failed" : ""}`, "data-id": u.id },
+    row({ lead: icon("server"), title: u.name,
+      sub: u.phase === "done" ? `Done: ${u.installed} → ${u.latest}` : u.failed ? `Did not finish, still ${u.installed}. Try again?` : `${u.installed} → ${u.latest}`,
+      trail: h("span", { class: "upd-actions" }, notes, trail) }),
+    u.phase === "installing" ? meter(restarting || u.percent === undefined ? null : u.percent / 100, caption) : null,
+  );
+}
+
+export function maintenanceControl(list: Entity[], refresh: () => void, restarting = false): HTMLElement {
+  const rows = model.updateRows(list, started);
+  const busy = rows.filter((u) => u.phase === "installing").length;
+  const waiting = rows.filter((u) => u.phase === "waiting").length;
   const updateIds = list.filter((e) => e.entity_id.startsWith("update.")).map((e) => e.entity_id);
-  return card({ title: "Maintenance", icon: "spark", aside: pill(ups.length ? `${ups.length} update${ups.length > 1 ? "s" : ""}` : "up to date", ups.length ? "warn" : "ok") },
-    h("div", { class: "tile-grid" },
+  const install = async (u: model.UpdateRow) => {
+    started.set(u.id, { from: u.installed });
+    refresh();
+    try {
+      await ha.call("update", "install", { entity_id: u.id }, {}); // returns when done; never, if HA restarts on the way
+    } catch (e) {
+      started.delete(u.id);
+      refresh();
+      toast(`Installing ${u.name} failed: ${(e as Error).message}`, "bad");
+    }
+  };
+  const aside = restarting ? pill("HA restarting…", "info")
+    : busy ? pill(`installing ${busy}`, "info")
+    : waiting ? pill(`${waiting} update${waiting > 1 ? "s" : ""}`, "warn")
+    : pill("up to date", "ok");
+  return card({ title: "Maintenance", icon: "spark", aside, wide: restarting },
+    restarting ? null : h("div", { class: "tile-grid" },
       actionTile({ icon: "spark", title: "Back up now", hint: "Encrypted, like the nightly backup", confirm: "Click again to back up" },
         () => act("backup", "create_automatic", null, {}, "Backup started")),
       actionTile({ icon: "speed", title: "Check for updates", hint: "Ask for the newest versions now" },
         () => act("homeassistant", "update_entity", { entity_id: updateIds }, {}, "Checking for updates…")),
-      ...ups.map((u) => actionTile({ icon: "spark", title: `Install ${u.name}`, hint: `${u.installed} → ${u.latest}`, confirm: "Click again to install" },
-        () => act("update", "install", { entity_id: u.id }, {}, `Installing ${u.name}…`))),
     ),
+    rows.length
+      ? h("div", { class: "upd-list" }, ...rows.map((u) => updateRow(u, restarting, install)))
+      : h("p", { class: "muted small upd-none" }, "Everything is up to date."),
   );
 }

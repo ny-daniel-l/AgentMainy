@@ -11,7 +11,17 @@ export interface Entity {
 }
 
 const domainOf = (e: Entity) => e.entity_id.split(".")[0];
-export const nameOf = (e: Entity): string => e.attributes.friendly_name || e.entity_id;
+export const nameOf = (e: Entity): string => dedupeName(e.attributes.friendly_name || e.entity_id);
+
+/** HA joins device and entity name: "Front door (Nuki) Front door" -> "Front door (Nuki)". */
+export function dedupeName(name: string): string {
+  const words = name.split(" ");
+  for (let i = words.length - 1; i > 0; i--) {
+    const tail = words.slice(i).join(" ");
+    if (name.startsWith(tail + " ") && i >= tail.split(" ").length) return words.slice(0, i).join(" ");
+  }
+  return name;
+}
 const withUnit = (e?: Entity) =>
   e && e.state !== "unknown" && e.state !== "unavailable"
     ? `${e.state}${e.attributes.unit_of_measurement ? " " + e.attributes.unit_of_measurement : ""}`
@@ -76,6 +86,18 @@ export function appliancesCount(list: Entity[]): number {
 
 export function timers(list: Entity[]): Entity[] {
   return list.filter((e) => domainOf(e) === "timer");
+}
+
+/** A timer's "H:MM:SS" duration in whole minutes (0 if unreadable). */
+export function durationMin(d: unknown): number {
+  const m = /^(\d+):(\d{1,2}):(\d{1,2})$/.exec(String(d ?? "").trim());
+  return m ? Math.round(Number(m[1]) * 60 + Number(m[2]) + Number(m[3]) / 60) : 0;
+}
+
+/** Minutes as a timer reads them: 5 -> "05:00", 90 -> "1:30:00". */
+export function clockText(min: number): string {
+  const mm = String(min % 60).padStart(2, "0");
+  return min >= 60 ? `${Math.floor(min / 60)}:${mm}:00` : `${mm}:00`;
 }
 
 // Router pseudo-entries (radios, ports) that are not real devices.
@@ -174,13 +196,69 @@ export interface Update {
   name: string;
   installed: string;
   latest: string;
+  releaseUrl?: string;
+  installing: boolean;
+  percent?: number;       // 0–100 when HA knows it, else the bar just moves
 }
 
-/** Software with an update waiting (Home Assistant, the OS, add-ons). */
+// Older HA put the percentage in in_progress itself, newer in update_percentage.
+const installingOf = (e: Entity) => e.attributes.in_progress === true || typeof e.attributes.in_progress === "number";
+const percentOf = (e: Entity): number | undefined => {
+  const p = e.attributes.update_percentage ?? (typeof e.attributes.in_progress === "number" ? e.attributes.in_progress : undefined);
+  return typeof p === "number" && Number.isFinite(p) ? Math.min(100, Math.max(0, Math.round(p))) : undefined;
+};
+// No & % or quotes: open_url hands the address to cmd.
+const safeUrl = (u: unknown) => (typeof u === "string" && /^https:\/\/[\w.:/?#=~+-]+$/.test(u) ? u : undefined);
+const updateName = (e: Entity) => nameOf(e).replace(/ update$/i, "");
+
+/** Software with an update waiting or installing (Home Assistant, the OS, add-ons). */
 export function updates(list: Entity[]): Update[] {
   return list
-    .filter((e) => domainOf(e) === "update" && e.state === "on")
-    .map((e) => ({ id: e.entity_id, name: nameOf(e).replace(/ update$/i, ""), installed: e.attributes.installed_version ?? "?", latest: e.attributes.latest_version ?? "?" }));
+    .filter((e) => domainOf(e) === "update" && (e.state === "on" || installingOf(e)))
+    .map((e) => ({
+      id: e.entity_id, name: updateName(e),
+      installed: e.attributes.installed_version ?? "?", latest: e.attributes.latest_version ?? "?",
+      releaseUrl: safeUrl(e.attributes.release_url), installing: installingOf(e), percent: percentOf(e),
+    }));
+}
+
+export interface UpdateRow extends Update {
+  phase: "waiting" | "installing" | "done";
+  failed?: boolean;       // HA was installing it and stopped, still on the old version
+}
+
+/** An install this app knows about: the version before it, and whether HA flagged it in progress yet. */
+export interface Started {
+  from: string;
+  flagged?: boolean;
+  failed?: boolean;
+}
+
+/**
+ * The Maintenance card's rows: installing first, then waiting, then done.
+ * `started` holds installs clicked here or seen in progress (those are added
+ * to it). One is "done" once the installed version moved on; if HA's
+ * in_progress went off on the old version, it failed and can be retried.
+ */
+export function updateRows(list: Entity[], started: Map<string, Started>): UpdateRow[] {
+  const ups = updates(list);
+  const rows: UpdateRow[] = ups.map((u) => {
+    let s = started.get(u.id);
+    if (u.installing) {
+      if (!s || s.from !== u.installed || s.failed) started.set(u.id, s = { from: u.installed });
+      s.flagged = true;
+    } else if (s?.flagged && s.from === u.installed) s.failed = true; // also covers a failure across an HA restart: no error reaches us then
+    const installing = u.installing || (s?.from === u.installed && !s.flagged); // clicked, HA has not flagged it yet
+    return { ...u, installing, phase: installing ? "installing" : "waiting", failed: !installing && s?.from === u.installed && s.failed };
+  });
+  for (const [id, { from }] of started) {
+    const e = list.find((x) => x.entity_id === id);
+    if (!e || installingOf(e) || e.attributes.installed_version === from) continue;
+    rows.push({ id, name: updateName(e), installed: from, latest: e.attributes.installed_version ?? "?",
+      releaseUrl: safeUrl(e.attributes.release_url), installing: false, phase: "done" });
+  }
+  const order = { installing: 0, waiting: 1, done: 2 };
+  return rows.sort((a, b) => order[a.phase] - order[b.phase]);
 }
 
 export interface Alarm {
@@ -191,6 +269,12 @@ export interface Alarm {
   armed?: boolean;
 }
 
+/** "Alarm" for a helper still on a default name: German "Wecker", or none at all (the entity id). */
+export function alarmLabel(name: string, entityId: string): string {
+  if (name === entityId) return "Alarm";
+  return name.replace(/^wecker(?=$|\s)/i, "Alarm");
+}
+
 /** Time-only input_datetimes, each paired with an input_boolean whose name starts with its name ("Wecker" + "Wecker aktiv"). */
 export function alarms(list: Entity[]): Alarm[] {
   const switches = list.filter((e) => domainOf(e) === "input_boolean");
@@ -199,7 +283,7 @@ export function alarms(list: Entity[]): Alarm[] {
     .map((e) => {
       const name = nameOf(e);
       const sw = switches.find((b) => nameOf(b).toLowerCase().startsWith(name.toLowerCase()));
-      return { id: e.entity_id, name, time: String(e.state).slice(0, 5), switchId: sw?.entity_id, armed: sw ? sw.state === "on" : undefined };
+      return { id: e.entity_id, name: alarmLabel(name, e.entity_id), time: String(e.state).slice(0, 5), switchId: sw?.entity_id, armed: sw ? sw.state === "on" : undefined };
     });
 }
 
