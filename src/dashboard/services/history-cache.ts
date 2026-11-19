@@ -9,7 +9,8 @@ const loading = new Set<string>();
 export function cachedHistory(entityId: string, hours: number, ready: () => void): Points | undefined {
   const key = `${entityId}@${hours}`;
   const hit = cache.get(key);
-  if ((!hit || Date.now() - hit.at > 300_000) && !loading.has(key)) {
+  // not before HA is online: a "Not connected" failure would be kept as "no history" for 5 min
+  if ((!hit || Date.now() - hit.at > 300_000) && !loading.has(key) && ha.status === "online") {
     loading.add(key);
     ha.history(entityId, hours)
       .then((points) => cache.set(key, { at: Date.now(), points }))

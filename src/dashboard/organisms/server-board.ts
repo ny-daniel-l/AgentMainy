@@ -3,7 +3,9 @@
 import { h } from "../atoms/h";
 import { pill, type Tone } from "../atoms/badge";
 import { card } from "../molecules/card";
+import { button } from "../atoms/button";
 import { gauge } from "../molecules/gauge";
+import { levelBars } from "../molecules/fan-bars";
 import { sparkline } from "../molecules/sparkline";
 import { empty } from "../molecules/empty";
 import * as model from "../services/home-model";
@@ -19,21 +21,28 @@ function tempTone(t?: number): Tone {
   return t >= warn + 10 ? "bad" : t >= warn ? "warn" : "ok";
 }
 
-export function healthCard(list: Entity[]): HTMLElement {
+const TEMP_MAX = 85; // the Pi 5 throttles at 85 °C: a full ring
+
+export function healthCard(list: Entity[], openControl: () => void): HTMLElement {
   const s = model.server(list);
   if (s.temp === undefined && s.cpu === undefined) {
     return card({ title: "Raspberry Pi", icon: "server", wide: true },
       empty("Set up the Pi sensors from home-assistant/ (fan + System Monitor) to see the Pi here.", { icon: "devices" }));
   }
-  const fanText = s.fanLevel === undefined ? "–" : s.fanRpm ? `${s.fanRpm} rpm` : "off";
-  return card({ title: "Health", icon: "server", wide: true,
-      aside: s.powerOk === undefined ? null : pill(s.powerOk ? "power OK" : "under-voltage!", s.powerOk ? "ok" : "bad") },
+  const fanText = s.fanLevel === undefined ? "–" : s.fanRpm ? `${s.fanRpm} rpm` : s.fanMode === "Auto" ? "idle" : "off";
+  const aside = h("span", { class: "card-aside" },
+    s.powerOk === undefined ? null : pill(s.powerOk ? "power OK" : "under-voltage!", s.powerOk ? "ok" : "bad"),
+    button("Pi control", openControl, { icon: "plug", title: "Fan, restart, reboot, shut down, backups and updates" }));
+  return card({ title: "Health", icon: "server", wide: true, aside },
     h("div", { class: "gauges" },
-      gauge(s.temp === undefined ? undefined : s.temp / 85, s.temp === undefined ? "–" : formatTemp(s.temp), "CPU temperature", tempTone(s.temp)),
+      gauge(s.temp === undefined ? undefined : s.temp / TEMP_MAX, s.temp === undefined ? "–" : formatTemp(s.temp), "CPU temperature", tempTone(s.temp), `of ${formatTemp(TEMP_MAX).replace(".0 ", " ")}`),
       gauge(s.cpu === undefined ? undefined : s.cpu / 100, pct(s.cpu), "CPU load", loadTone(s.cpu)),
       gauge(s.memory === undefined ? undefined : s.memory / 100, pct(s.memory), "Memory", loadTone(s.memory)),
       gauge(s.disk === undefined ? undefined : s.disk / 100, pct(s.disk), "Disk", loadTone(s.disk)),
-      gauge(s.fanLevel === undefined ? undefined : s.fanLevel / 4, fanText, `Fan level ${s.fanLevel ?? "–"}/4`, s.fanLevel ? "info" : "off"),
+      h("div", { class: "gauge gauge-fan" },
+        h("div", { class: "g-bars" }, levelBars(s.fanLevel ?? 0)),
+        h("div", { class: "g-value" }, fanText),
+        h("div", { class: "g-label" }, `Fan level ${s.fanLevel ?? "–"}/4`)),
     ),
   );
 }

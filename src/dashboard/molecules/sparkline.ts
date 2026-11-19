@@ -1,4 +1,5 @@
-// A small line chart of the last hours with its min / max / now.
+// A small line chart of the last hours with its min / max / now, a time axis
+// and the value under the mouse.
 import { h } from "../atoms/h";
 
 /** Average many samples (a 10 s sensor gives ~8,600 a day) into `n` buckets. */
@@ -23,9 +24,25 @@ export function sparkline(raw: { t: number; v: number }[], opts: { unit?: string
   const line = points.map((p, i) => `${i ? "L" : "M"}${x(p.t).toFixed(1)},${y(p.v).toFixed(1)}`).join("");
   const area = `${line}L${x(t1).toFixed(1)},${H}L${x(t0).toFixed(1)},${H}Z`;
   const fmt = (v: number) => `${v.toFixed(opts.digits ?? 1)}${opts.unit ? " " + opts.unit : ""}`;
+  const clock = (t: number) => new Date(t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const hover = (e: MouseEvent) => {
+    const plot = e.currentTarget as HTMLElement;
+    const r = plot.getBoundingClientRect();
+    const t = t0 + ((e.clientX - r.left) / r.width) * (t1 - t0);
+    const p = points.reduce((a, b) => (Math.abs(b.t - t) < Math.abs(a.t - t) ? b : a));
+    const tip = plot.querySelector<HTMLElement>(".spark-tip")!;
+    tip.hidden = false;
+    tip.textContent = `${clock(p.t)} · ${fmt(p.v)}`;
+    tip.style.left = `${Math.min(85, Math.max(15, ((p.t - t0) / Math.max(1, t1 - t0)) * 100))}%`;
+  };
   return h("div", { class: "spark" },
-    h("div", { class: "spark-plot", role: "img", "aria-label": `From ${fmt(min)} to ${fmt(max)}`,
-      html: `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><path class="sp-area" d="${area}"/><path class="sp-line" d="${line}"/></svg>` }),
+    h("div", { class: "spark-plot", role: "img", "aria-label": `From ${fmt(min)} to ${fmt(max)}, ${clock(t0)} to now`,
+      onmousemove: hover, onmouseleave: (e: Event) => { (e.currentTarget as HTMLElement).querySelector<HTMLElement>(".spark-tip")!.hidden = true; } },
+      h("div", { class: "spark-svg",
+        html: `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><path class="sp-area" d="${area}"/><path class="sp-line" d="${line}"/></svg>` }),
+      h("div", { class: "spark-tip", hidden: true })),
+    h("div", { class: "spark-axis", "aria-hidden": "true" },
+      h("span", null, clock(t0)), h("span", null, clock((t0 + t1) / 2)), h("span", null, "now")),
     h("div", { class: "spark-legend" },
       h("span", null, `min ${fmt(min)}`), h("span", null, `max ${fmt(max)}`), h("b", null, `now ${fmt(raw[raw.length - 1].v)}`)),
   );
